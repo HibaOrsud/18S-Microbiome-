@@ -1,0 +1,1049 @@
+---
+title: "alpha D.PR2"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+# Install and load packages
+install.packages("BiocManager")
+BiocManager::install("phyloseq")
+install.packages("vegan")
+install.packages("ggplot2")
+
+library(phyloseq)
+library(vegan)
+library(ggplot2)
+
+# Load data
+otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-otu-table.csv", row.names = 1)
+otu_table <- otu_table(otu_table, taxa_are_rows = TRUE)
+
+tax_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-taxa-table-silva.csv", row.names = 1)
+#tax_table <- tax_table(tax_table)
+tax_table <- as.matrix(tax_table)
+
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-meta_data.csv", row.names = 1)
+sample_data <- sample_data(sample_data)
+
+# Load necessary library
+library(phyloseq)
+
+# Step 1: Read the CSV file as a data frame
+tax_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\taxa_table_PR2.csv", row.names = 1)
+
+# Step 2: Convert the data frame to a matrix
+tax_matrix <- as.matrix(tax_table)
+
+# Step 3: Create a tax_table object
+tax_table <- tax_table(tax_matrix)
+
+# Check the tax_table
+print(tax_table)
+
+----
+# Load necessary library
+library(phyloseq)
+
+# Read the OTU table, taxonomy table, and sample data
+otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\otu_table_PR2.csv", row.names = 1)
+tax_df <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\taxa_table_PR2.csv", row.names = 1)
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\meta_data.csv", row.names = 1)
+------
+
+# Convert OTU table and taxonomy table to appropriate formats
+otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+tax_matrix <- as.matrix(tax_table)
+tax_table <- tax_table(tax_matrix)
+
+# Check if row names match
+otu_taxa_names <- rownames(otu_table)
+tax_taxa_names <- rownames(tax_table)
+
+if (!all(otu_taxa_names %in% tax_taxa_names) || !all(tax_taxa_names %in% otu_taxa_names)) {
+  stop("OTU names and taxonomy names do not match")
+}
+print(otu_taxa_names)
+print(tax_taxa_names)
+# Ensure sample data is formatted correctly
+sample_data <- sample_data(sample_data)
+
+# Create phyloseq object
+physeq <- phyloseq(otu_table, tax_table, sample_data)
+
+# Print phyloseq object
+print(physeq)
+str(physeq)
+
+library(ggplot2)
+library(scales)
+______________________________________________________________________________
+______________________________________________________________________________
+###stacked bar phylum/family/species
+# Transform data to relative abundance
+physeq_relabund <- transform_sample_counts(physeq, function(x) x / sum(x))
+# Check the transformed phyloseq object
+print(physeq_relabund)
+# Aggregate data at the Phylum/family/species level
+physeq_Phylum <- tax_glom(physeq_relabund, "Phylum")
+
+# Convert to a data frame for ggplot2
+physeq_df <- psmelt(physeq_Phylum)
+
+# Print the plot
+
+pg <- ggplot(physeq_df, aes(x = Sample, y = Abundance, fill = Phylum)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal() +
+  theme(legend.key.height = unit(0.15, "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 10), 
+        axis.title.x = element_text(size = 12, face = "bold"), 
+        axis.title.y = element_text(size = 12, face = "bold")) + 
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Taxa Prevalence at phylum Level", x = "Samples", y = "Relative Abundance")
+
+print(pg)
+
+
+data.com <- plot.composition.relAbun$pg
+colnames(data.com)
+
+pg.heat <- ggplot(data.com, aes(x = Sample, y = Tax)) + geom_tile(aes(fill = Abundance)) 
+
+______________________________________________________________________________
+______________________________________________________________________________
+----
+
+# Create phyloseq object
+#physeq <- phyloseq(otu_table, tax_table, sample_data)
+plot_bar(physeq)
+# Check if the row names of alpha_diversity_df match with the sample names in sample_data
+sample_names <- sample_names(physeq)
+if (!all(rownames(alpha_diversity_df) %in% sample_names)) {
+  stop("Sample names in alpha_diversity_df do not match those in sample_data")
+}
+# Calculate alpha diversity
+alpha_diversity <- estimate_richness(physeq, measures = c("Observed", "Shannon", "Simpson"))
+
+# Visualize alpha diversity
+alpha_diversity_df <- as.data.frame(alpha_diversity)
+alpha_diversity_df$sample_names <- sample_data$sample_names
+# Plot Shannon Diversity Index
+ggplot(alpha_diversity_df, aes(x = sample_names, y = Shannon)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Shannon Diversity Index", x = "sample_names", y = "Shannon Index")
+# Plot Simpson Diversity Index  
+ggplot(alpha_diversity_df, aes(x = sample_names, y = Simpson)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Simpson Diversity Index", x = "sample_names", y = "Simpson Index")
+--
+ggplot(alpha_diversity_df, aes(x = Sample, y = Value, fill = DiversityIndex)) +
+  geom_boxplot() +
+  facet_wrap(~DiversityIndex, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Comparison of Simpson and Shannon Diversity Indices",
+       x = "Sample", y = "Diversity Index Value") +
+  scale_fill_manual(values = c("Shannon" = "skyblue", "Simpson" = "orange"))
+
+------------------------------------------------------------------------------------
+# Load necessary libraries
+library(phyloseq)
+library(ggplot2)
+library(reshape2)
+
+# Assuming `physeq` is your phyloseq object
+
+# Calculate alpha diversity indices: Shannon and Simpson
+alpha_diversity <- estimate_richness(physeq, measures = c("Shannon", "Simpson"))
+
+# Convert to data frame
+alpha_diversity_df <- as.data.frame(alpha_diversity)
+
+# Add a column to alpha_diversity_df to use as a key for merging
+alpha_diversity_df$Sample <- rownames(alpha_diversity_df)
+
+# Check if row names in sample_data match the sample names in alpha_diversity_df
+all(rownames(sample_data_df) == alpha_diversity_df$Sample)  # Should be TRUE
+
+if (!all(rownames(alpha_diversity_df) == rownames(sample_data_df))) {
+  stop("Mismatch in sample identifiers between alpha diversity and sample data.")
+}
+# Merge alpha diversity results with sample metadata based on sample names
+combined_data <- merge(alpha_diversity_df, sample_data_df, by.X = "Sample.ID")
+print(colnames(combined_data))
+# Melt the data frame for ggplot2
+alpha_diversity_long <- melt(combined_data, id.vars = c("Sample"), variable.name = "DiversityIndex", value.name = "Value")
+# Check for duplicate columns in the melted data
+if (any(duplicated(names(alpha_diversity_long)))) {
+  stop("Data frame contains duplicate columns. Please check the merge result.")
+}
+
+# Plot Shannon and Simpson Diversity Indices
+ggplot(alpha_diversity_long, aes(x = Sample, y = Value, fill = DiversityIndex)) +
+  geom_boxplot() +
+  facet_wrap(~DiversityIndex, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Comparison of Simpson and Shannon Diversity Indices",
+       x = "Sample", y = "Diversity Index Value") +
+  scale_fill_manual(values = c("Shannon" = "skyblue", "Simpson" = "orange"))
+  
+  -----
+# Example: Log transformation of the values for better scaling
+alpha_diversity_long$Value <- log(alpha_diversity_long$Value +1)  # Add 1 to avoid log(0) issues  
+#Plotting the alpha diversity indices
+  ggplot(alpha_diversity_long, aes(x = Sample, y = Value, fill = DiversityIndex)) +
+  geom_boxplot() +
+  facet_wrap(~DiversityIndex, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Comparison of Alpha Diversity Indices",
+       x = "Samples", y = "Diversity Index Value") +
+  scale_fill_brewer(palette = "Set3")  
+  
+# Using a color palette for better visualization 
+# Adjust the x-axis limits
+#p + scale_x_discrete(limits = c("Type1", "Type2", "Type3", "Type4"))
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+-----------------------------------------------------------------------
+.......................................................................
+# data analysis and visualisation
+library(microbiome)
+# also the basis of data object. Data analysis and visualisation
+library(phyloseq)
+# some utility tools 
+install.packages("microbiomeutilities")
+BiocManager::install("microbiomeutilities")
+a
+library(microbiomeutilities) 
+# nice color options
+library(RColorBrewer)
+# publication quality figures, based on ggplot2
+install.packages("ggpubr")
+library(ggpubr)
+# interactive tables in html and markdown
+install.packages("DT")
+library(DT)
+# alternative to data.frame
+library(data.table)
+# data handling
+library(dplyr)   
+library(ggplot2)
+library(phyloseq)
+
+plot(treeNJ)  
+print(phy_tree_obj)
+print(physeq)
+summary(sample_sums(physeq))
+# Create phyloseq object
+phy <- phyloseq(otu_table(otu_matrix, taxa_are_rows = TRUE), 
+              tax_table(as.matrix(tax_table)), 
+              sample_data)
+otu_tab <- t(abundances(physeq))
+p <- vegan::rarecurve(otu_tab, 
+                      step = 50, label = TRUE, 
+                      sample = min(rowSums(otu_tab), 
+                                   col = "blue", cex = 0.6))
+p <- vegan::rarecurve(otu_tab, 
+                      step = 50, label = TRUE, 
+                      sample = min(rowSums(otu_tab)), 
+                      col = "brown", cex = 0.6, 
+                      ylab = "Expected OTU Richness")
+                      
+# This will help in reproducing the filtering and nomalisation.                                   
+set.seed(9242)   
+
+# quick check taxa prevalence
+
+p.rar <- plot_taxa_prevalence(physeq, "Order")
+
+p.rar
+
+
+hmp.div <- alpha(physeq, index = "all")   
+
+# get the metadata out as seprate object
+hmp.meta <- meta(physeq)
+
+# Add the rownames as a new colum for easy integration later.
+hmp.meta$sam_name <- rownames(hmp.meta)
+
+# Add the rownames to diversity table
+hmp.div$sam_name <- rownames(hmp.div)
+
+# merge these two data frames into one
+div.df <- merge(hmp.div,hmp.meta, by = "sam_name")
+
+# check the tables
+colnames(div.df)
+
+
+#save
+write.csv(div.df, file = "alpha-div.df_its.csv", row.names = TRUE)
+
+
+# Convert Treatment.type to a factor and set the labels
+div.df$Treatment.type <- factor(div.df$Treatment.type, 
+                                levels = c(0, 1), 
+                                labels = c("with Immunotherpy", "without Immunotherpy"))
+# Convert Cancer.types to a factor and set the labels                                
+                                
+div.df$Cancer.types <- factor(div.df$Cancer.types, 
+                                levels = c(0, 1), 
+                                labels = c("GI", "Non-GI"))                                
+                                
+# Convert Event.status to a factor and set the labels
+div.df$Event.status <- factor(div.df$Treatment.type, 
+                                levels = c(0, 1), 
+                                labels = c("Responder", "Non-responder")) 
+                                
+# Convert Baseline.and.follow.up to a factor and set the labels
+div.df$Baseline.and.follow.ups <- factor(div.df$Baseline.and.follow.up, 
+                                levels = c(1, 2), 
+                                labels = c("B", "F"))                                  
+#Convert the div.df data frame to long format
+div_df_long <- div.df %>%
+  pivot_longer(
+    cols = -c(sam_name, Treatment.type, Cancer.types, Event.status, Baseline.and.follow.ups),
+    names_to = "diversity_measure",
+    values_to = "value"
+  )                                
+# Create the ggplot
+ggplot(div.df, aes(x = evenness_simpson, y = value, fill = Treatment.type)) +
+  geom_boxplot() +
+  facet_wrap(~evenness_simpson, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Comparison of Diversity Indices",
+       x = "Diversity Measure", y = "Diversity Index Value") +
+  scale_fill_manual(values = c("with Immunotherpy" = "skyblue", "without Immunotherpy" = "orange"))                               
+# Now use this data frame to plot 
+p <- ggboxplot(div.df, 
+               x = "Event.status",
+               y = "diversity_shannon",
+              fill = "Event.status",
+              palette = "jco")+
+          labs(title = "Comparison of Diversity_shannon Indices",
+       x = "Diversity Measure", y = "Shannon Diversity Index Value") +
+  scale_fill_manual(values = c("Responder" = "skyblue", "Non-responder" = "orange"))
+
+p <- p + rotate_x_text()
+
+print(p)
+###################################
+###################################
+head(hmp.meta)
+### By Meling index
+# convert phyloseq object into a long data format.
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+c("Event.status", "observed", "chao1", "diversity_inverse_simpson", "diversity_gini_simpson", "diversity_shannon", "diversity_fisher", "diversity_coverage", "evenness_camargo", "evenness_pielou",   "evenness_simpson", "evenness_evar", "evenness_bulla", "dominance_dbp", "dominance_dmn", "dominance_absolute", "dominance_relative", "dominance_simpson", "dominance_core_abundance", "dominance_gini", "rarity_log_modulo_skewness", "rarity_low_abundance", "rarity_rare_abundance" )]
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+colnames(div.df)
+div.df2 <- div.df[, c("Cancer.types","rarity_low_abundance", "rarity_rare_abundance")]
+
+# the names are not pretty. we can replace them
+
+colnames(div.df2) <- c("Cancer.types","rarity_low_abundance", "rarity_rare_abundance")
+
+div_df_melt <- reshape2::melt(div.df2, c("Cancer.types"))
+
+head(div_df_melt)
+
+# Now use this data frame to plot 
+p <- ggboxplot(div_df_melt, x = "Cancer.types", y = "value",
+               fill = "Cancer.types", 
+              palette = "jco", 
+               legend= "right",
+               facet.by = "variable", 
+               scales = "free")+
+           labs(title = "Comparison of Diversity Indices by Cancer.types",
+       x = "Cancer.types", y = "Diversity Index") +
+  scale_fill_manual(values = c("GI" = "skyblue", "Non-GI" = "orange"))
+
+p <- p + rotate_x_text() 
+# we will remove the x axis lables
+
+p <- p + rremove("x.text")
+p
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Add significance testing
+p <- p + stat_compare_means(aes(label = ..p.signif..), 
+                            method = "wilcox.test", # Use appropriate test (e.g., "t.test", "wilcox.test")
+                            label = "p.signif",
+                            label.y = 1.5) # Adjust label position if needed
+
+# Print the plot
+print(p)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+stat_results <- compare_means(value ~ Cancer.types, data = div_df_melt, 
+                              method = "wilcox.test", 
+                              group.by = "variable")
+
+# View the results
+print(stat_results)
+
+# Save the results to a CSV file
+write.csv(stat_results, "significance_results-alpha5-cancer.type-its.csv", row.names = TRUE)
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+-------------------------------
+------------------------------
+------------------------------
+div_df_melt <- melt(div.df2, id.vars = c("sam_names", "Treatment.type", "Cancer.types", "Event.status", "Baseline.and.follow.ups"))
+
+# Plot the data
+ggplot(div_df_melt, aes(x = variable, y = value, fill = Treatment.type)) +
+  geom_boxplot() +
+  facet_wrap(~variable, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Comparison of Diversity Indices",
+       x = "Diversity Metric", y = "Value") +
+  scale_fill_manual(values = c("0" = "skyblue", "1" = "orange"), labels = c("Non-responder", "Responder")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+-----------------------------------
+-----------------------------------
+-----------------------------------
+******************************************************
+******************************************************
+#phyloseq with seq_tree
+
+library(phyloseq)
+ otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\B vs F-22\\new-otu-table-BF.csv", row.names = 1)
+otu_table <- otu_table(otu_table, taxa_are_rows = TRUE)
+
+ tax_df <- read.csv("C:\\Users\\hibaorsud\\Desktop\\B vs F-22\\new.taxa_table-BF-worm.csv", row.names = 1)
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\B vs F-22\\new-metadata-BF.csv", row.names = 1)
+sample_data <- sample_data(sample_data)
+ 
+ otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+ tax_matrix <- as.matrix(tax_df)
+ tax_table <- tax_table(tax_matrix)
+ 
+ otu_taxa_names <- rownames(otu_table)
+ tax_taxa_names <- rownames(tax_table)
+ 
+ if (!all(otu_taxa_names %in% tax_taxa_names) || !all(tax_taxa_names %in% otu_taxa_names)) {
+   stop("OTU names and taxonomy names do not match")
+ }
+ 
+print(otu_taxa_names)
+print(tax_taxa_names)
+ 
+sample_data <- sample_data(sample_data)
+ 
+physeq <- phyloseq(otu_table, sample_data, tax_table, treeNJ)
+ 
+print(physeq)
+
+
+ps1.com.fam <- microbiome::aggregate_taxa(physeq,"Species")
+ps1.com.fam.rel <- microbiome::transform(ps1.com.fam, "compositional")
+
+plot.composition.relAbun <- plot_composition(ps1.com.fam.rel,
+                                             xlabel = "BF.groups")
+data.com <- plot.composition.relAbun$data
+================================
+##For top 20 species:
+# Check the taxonomic table
+tax_table(physeq)
+
+# Select the top 20 species based on mean relative abundance
+ps1.com.fam <- microbiome::aggregate_taxa(physeq,"Species")
+ps1.com.fam.rel <- microbiome::transform(ps1.com.fam, "compositional")
+top20_species <- names(sort(taxa_sums(ps1.com.fam.rel), decreasing = TRUE)[1:20])
+ps1.com.fam.rel.top20 <- prune_taxa(top20_species, ps1.com.fam.rel)
+
+# Plot the composition and set the x-axis label
+plot.composition.relAbun <- plot_composition(ps1.com.fam.rel.top20,
+                                             x.label = "BF.groups")
+
+# Extract the plotting data
+data.com <- plot.composition.relAbun$data
+
+# Print the filtered data to verify
+print(head(data.com))
+# Filter to keep only species level data in the Tax column
+#data.com <- data.com[data.com$Tax == "Species", ]
+
+# Now you can use data.com for further analysis or plotting
+=======================================
+# Print the filtered data to verify
+print(head(data.com))
+
+
+colnames(data.com)
+
+
+data.com$xlabel <- factor(data.com$xlabel, 
+                                levels = c(0, 1), 
+                                labels = c("with Immunotherpy", "without Immunotherpy"))
+                                
+data.com$xlabel <- factor(data.com$xlabel, 
+                                levels = c(0, 1), 
+                                labels = c("Responder", "Non-responder"))  
+                                
+data.com$xlabel <- factor(data.com$xlabel, 
+                                levels = c(0, 1), 
+                                labels = c("GI", "Non-GI"))   
+                                
+data.com$xlabel <- factor(data.com$xlabel, 
+                                levels = c(1, 2), 
+                                labels = c("B", "F"))                                  
+# base plot
+p.heat <- ggplot(data.com, aes(x = Sample, y = Tax)) + geom_tile(aes(fill = Abundance)) 
+
+# Change color
+p.heat <- p.heat + scale_fill_distiller("Abundance", palette = "RdYlBu") + theme_bw() 
+
+# Make bacterial names italics
+p.heat <- p.heat + 
+  theme(axis.text.y = element_text(colour = 'black', size = 5, face = 'italic')) 
+                                                    
+p.heat <- p.heat +
+  theme( 
+        axis.ticks.y = element_line(linewidth = 0.1))                                                    
+# Make seperate samples based on main varaible
+p.heat <- p.heat + facet_grid(~xlabel, 
+                              scales = "free") + rremove("x.text") 
+
+p.heat <- p.heat + ylab("Species")
+
+#Clean the x-axis
+p.heat <- p.heat +
+  theme(
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.text.x = element_text(angle = 90, size = 7, color = "black", hjust = 1, vjust = 0.5),  
+    axis.ticks.x = element_blank()    # Remove x-axis ticks
+  )
+
+# Clean the facet label box
+p.heat <- p.heat + theme(legend.key = element_blank(), 
+                     strip.background = element_rect(colour="black", fill="white"))
+
+print(p.heat)
+ggsave("heatmap20-BF vs taxa-pr2.png", plot = p.heat, width = 12, height = 10, units = "in", dpi = 1000)
+******************************************************
+******************************************************
+#Beta Diversity
+library(microbiome) 
+library(phyloseq) 
+library(RColorBrewer) 
+library(ggpubr) 
+library(dplyr)
+
+#####Unweighted Unifrac
+
+library(phyloseq)
+ otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-otu-table.csv", row.names = 1)
+ tax_df <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-taxa_table_PR2.csv", row.names = 1)
+ sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new-meta_data.csv", row.names = 1)
+ 
+ otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+ tax_matrix <- as.matrix(tax_df)
+ tax_table <- tax_table(tax_matrix)
+ 
+ otu_taxa_names <- rownames(otu_table)
+ tax_taxa_names <- rownames(tax_table)
+ 
+ if (!all(otu_taxa_names %in% tax_taxa_names) || !all(tax_taxa_names %in% otu_taxa_names)) {
+  stop("OTU names and taxonomy names do not match")
+ }
+ 
+ print(otu_taxa_names)
+ print(tax_taxa_names)
+ 
+ sample_data <- sample_data(sample_data)
+ 
+ physeq <- phyloseq(otu_table, sample_data, tax_table, treeNJ)
+ 
+ print(physeq)
+
+# Calculate a distance matrix
+#dist_matrix <- vegdist(otu_table(physeq), method = "bray")
+##remove empty raws:
+# Convert the OTU table to a matrix
+otu_matrix <- as.matrix(otu_table(physeq))
+
+# Remove rows with all zero counts
+otu_matrix <- otu_matrix[rowSums(otu_matrix) > 0, ]
+
+# Create a new phyloseq object with the cleaned OTU table
+physeq_clean <- phyloseq(otu_table(otu_matrix, taxa_are_rows = TRUE), 
+                         sample_data(physeq), 
+                         tax_table(physeq), 
+                         phy_tree(physeq))
+
+# Verify the cleaned phyloseq object
+otu_table(physeq_clean)
+#factorize Treatment.type , Event.status, Cancer.types , BF
+sample_data(physeq)$Treatment.type <- factor(sample_data(physeq)$Treatment.type, 
+                                             levels = c(0, 1), 
+                                             labels = c("with Immunotherapy", "without Immunotherapy"))
+
+
+sample_data(physeq)$Event.status <- factor(sample_data(physeq)$Event.status, 
+                                             levels = c(0, 1), 
+                                             labels = c("Responder", "Non-responder"))
+
+
+sample_data(physeq)$Cancer.types <- factor(sample_data(physeq)$Cancer.types, 
+                                             levels = c(0, 1), 
+                                             labels = c("GI", "Non-GI"))
+                                             
+sample_data(physeq_clean)$BF.groups <- factor(sample_data(physeq)$BF.groups, 
+                                             levels = c(1, 2), 
+                                             labels = c("B", "F"))    
+
+# Calculate a distance matrix
+dist_matrix <- vegdist(otu_table(physeq_clean), method = "bray")
+-----
+# Check for missing values in the distance matrix
+if (any(is.na(dist_matrix))) {
+  print("There are missing values in the distance matrix.")
+# Handle missing values if necessary
+}
+
+# Proceed with analysis using the cleaned distance matrix
+print(dist_matrix)
+
+# Remove rows with all zeroes from the OTU table
+otu_table_filtered <- otu_table(physeq)[rowSums(otu_table(physeq)) > 0, ]
+
+# Then, re-run the vegdist function
+dist_matrix <- vegdist(otu_table_filtered, method = "bray")
+
+# Check for missing values
+any(is.na(otu_table_filtered))
+
+# Option 1: Remove missing values (rows or columns with NAs)
+otu_table_clean <- na.omit(otu_table_filtered)
+
+# Option 2: Impute missing values (e.g., replace NAs with zeros)
+otu_table_clean <- replace(otu_table_filtered, is.na(otu_table_filtered), 0)
+
+# Re-run the distance matrix calculation
+dist_matrix <- vegdist(otu_table_clean, method = "bray")
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+sample_data(physeq)$BF.groups
+sample_data(physeq)$BF.groups <- some_grouping_vector
+dim(ordination(physeq)$vectors)
+dim(sample_data(physeq))
+
+-----
+# Perform ordination
+ordu <- ordinate(physeq_clean, method = "PCoA", distance = dist_matrix)
+
+#save
+write.table(ordu[["values"]], file = "newpcoa_coordinates-unweighted unifrac-BF.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
+
+
+# Create the ordination plot
+p <- plot_ordination(physeq_clean, ordu, color = "Treatment.type") +
+  geom_point(size = 3) +
+  theme_gray() + 
+  scale_color_manual(values = c("with Immunotherapy" = "skyblue", "without Immunotherapy" = "orange")) + 
+  labs(title = "PCoA of Taxonomic Data", x = "PCoA1", y = "PCoA2")
+
+# Print the plot
+print(p)
+>>>
+library(phyloseq)
+library(vegan)
+library(ggplot2)
+
+# Assuming 'physeq' is your phyloseq object
+
+# Remove empty rows (taxa with zero counts across all samples)
+otu_matrix <- as.matrix(otu_table(physeq))
+otu_matrix <- otu_matrix[rowSums(otu_matrix) > 0, ]
+
+# Create a new phyloseq object with the cleaned OTU table
+physeq_clean <- phyloseq(otu_table(otu_matrix, taxa_are_rows = TRUE), 
+                         sample_data(physeq), 
+                         tax_table(physeq))
+
+# Calculate Bray-Curtis distance matrix
+dist_matrix <- vegdist(otu_table(physeq_clean), method = "bray")
+
+# Perform PCoA ordination
+ordu <- ordinate(physeq_clean, method = "PCoA", distance = "bray")
+
+# Plot the ordination (points)
+p <- plot_ordination(physeq_clean, ordu, color = "Event.status") +
+  geom_point(size = 3) +
+  theme_gray() + 
+  scale_color_manual(values = c("Responder" = "skyblue", "Non-responder" = "orange")) + 
+  labs(title = "PCoA of Taxonomic Data between responder and nonresponder groups", x = "PCoA1", y = "PCoA2")
+
+# Print the plot
+print(p)
+----------------------------------------
+
+# Plot the ordination-unweighted (box_plot)
+# Generate the ordination plot object
+ordu_plot <- plot_ordination(physeq_clean, ordu, color = "Event.status")
+
+# Extract the scores and metadata from the ordination plot object
+plot_data <- ordu_plot$data
+
+p_box <- ggplot(plot_data, aes(x = Event.status, y = Axis.1, fill = Event.status)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.7) +
+  theme_gray() +
+  scale_fill_manual(values = c("Responder" = "skyblue", "Non-responder" = "orange")) +
+  labs(title = "Box Plot of PCoA1 by Event.status", x = "Event.status", y = "unweighted unifrac")
+
+# Print the plot
+print(p_box)
+
+--------------------------
+##with significance-ordination-unweighted (box_plot)
+
+library(ggsignif)
+
+# Assume plot_data is already created from the previous steps
+
+# Perform a significance test (e.g., Wilcoxon test)
+test_result <- wilcox.test(Axis.1 ~ Treatment.type, data = plot_data)
+
+# Create the box plot with significance bars
+p_box <- ggplot(plot_data, aes(x = Treatment.type, y = Axis.1, fill = Treatment.type)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.7, aes(group = Treatment.type))+ 
+  theme_gray() +
+  scale_fill_manual(values = c("with Immunotherapy" = "steelblue", "without Immunotherapy" = "tomato")) +
+  labs(title = "Box Plot of PCoA1 by Treatment.type", x = "Treatment.type", y = "unweighted unifrac") +
+  geom_signif(comparisons = list(c("with Immunotherapy", "without Immunotherapy")),
+              annotations = sprintf("p = %.2g", test_result$p.value),
+              y_position = max(plot_data$Axis.1) * 1.1, # adjust as needed
+              tip_length = 0.03)
+
+# Print the plot
+print(p_box)
+>>>
+
+#####Weighted Unifrac----
+ps1.rel <- microbiome::transform(physeq, "compositional")
+
+ordu.wt.uni <- ordinate(ps1.rel , "PCoA", "unifrac", weighted=T)
+
+#save
+write.table(ordu.wt.uni[["values"]], file = "newpcoa_coordinates-weighted unifrac-F.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
+
+
+# check for Eigen values 
+# barplot(ordu.unwt.uni$values$Eigenvalues[1:10])
+
+#wt.unifrac <- plot_ordination(ps1.rel, 
+                                     ordu.wt.uni, color="Cancer.types") 
+#wt.unifrac <- wt.unifrac + ggtitle("Weighted UniFrac") + geom_point(size = 2)
+#wt.unifrac <- wt.unifrac + theme_classic() + scale_color_brewer("Cancer.types", palette = "Set2")
+#print(wt.unifrac)
+
+
+p <- plot_ordination(ps1.rel, ordu.wt.uni, color = "Treatment.type") +
+  geom_point(size = 3) +
+  theme_gray() +
+  scale_color_manual(values = c("with Immunotherapy" = "skyblue", "without Immunotherapy" = "orange")) + 
+  labs(title = "PCoA of Taxonomic Data", x = "PCoA1", y = "PCoA2")
+
+# Print the plot
+print(p)
+print(p + stat_ellipse())
+
+----------------------------------------------
+
+##with significance-ordination-weighted (box_plot)
+
+library(ggsignif)
+
+
+# Generate the ordination plot object
+ordu_plot <- plot_ordination(ps1.rel, ordu.wt.uni, color = "Treatment.type")
+
+# Extract the scores and metadata from the ordination plot object
+plot_data <- ordu_plot$data
+
+# Perform a significance test (e.g., Wilcoxon test)
+test_result <- wilcox.test(Axis.1 ~ Treatment.type, data = plot_data)
+
+# Create the box plot with significance bars
+p_box <- ggplot(plot_data, aes(x = Treatment.type, y = Axis.1, fill = Treatment.type)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, size = 1.5, alpha = 0.7, aes(group = Treatment.type)) +
+  theme_gray() +
+  scale_fill_manual(values = c("with Immunotherapy" = "steelblue", "without Immunotherapy" = "tomato")) +
+  labs(title = "Box Plot of PCoA1 by Treatment.type", x = "Treatment.type", y = "weighted unifrac") +
+  geom_signif(comparisons = list(c("with Immunotherapy", "without Immunotherapy")),
+              annotations = sprintf("p = %.2g", test_result$p.value),
+              y_position = max(plot_data$Axis.1, na.rm = TRUE) * 1.1, # adjust as needed
+              tip_length = 0.03)
+# Print the plot
+print(p_box)
+
+------------------------------------------------------
+####Density landscape: Bray-Curtis
+
+p <- plot_landscape(ps1.rel, 
+                    "NMDS", 
+                    "bray", 
+                    col = "Treatment.type") +
+                    labs(title = paste("NMDS / Bray-Curtis"))   
+
+p <- p + scale_color_brewer(palette = "Dark2")+
+     scale_fill_gradient(low = "#e0ecf4", high = "#6e016b")
+p
+
+# you can search across installed packages using:
+??plot_landscape
+
+# Perform NMDS ordination with Bray-Curtis distance
+nmds_results <- ordinate(ps1.rel, method = "NMDS", distance = "bray")
+
+# Extract ordination coordinates (NMDS axes)
+ordination_df <- data.frame(scores(nmds_results, display = "sites"))
+
+# Extract metadata (e.g., Event.status)
+metadata <- data.frame(sample_data(ps1.rel))
+
+# Combine ordination coordinates with metadata
+ordination_with_metadata <- cbind(ordination_df, metadata$BF.groups)
+
+# Rename columns (for clarity)
+colnames(ordination_with_metadata) <- c("NMDS1", "NMDS2", "BF.groups")
+
+# Save the combined data as a CSV file
+write.csv(ordination_with_metadata, file = "nmds_BF.csv", row.names = TRUE)
+
+
+
+**********************************************************
+**********************************************************
+##all pallettes
+
+# Load required packages
+library(ggpubr)
+library(reshape2)
+library(dplyr)
+
+# Assuming div_df_melt is already created and contains the data
+
+# Create a boxplot with the 'npg' palette
+p_npg <- ggboxplot(div_df_melt, x = "variable", y = "value",
+                   fill = "variable", 
+                   palette = "npg", 
+                   legend = "right",
+                   facet.by = "variable", 
+                   scales = "free") +
+         labs(title = "Diversity Indices by Treatment Type (NPG Palette)",
+              x = "Diversity Index",
+              y = "Treatment Type")
+
+# Print the plot
+print(p_npg)
+
+# Create a boxplot with the 'aaas' palette
+p_aaas <- ggboxplot(div_df_melt, x = "variable", y = "value",
+                    fill = "variable", 
+                    palette = "aaas", 
+                    legend = "right",
+                    facet.by = "variable", 
+                    scales = "free") +
+          labs(title = "Diversity Indices by Treatment Type (AAAS Palette)",
+               x = "Diversity Index",
+               y = "Treatment Type")
+
+# Print the plot
+print(p_aaas)
+
+# Create a boxplot with the 'ucscgb' palette
+p_ucscgb <- ggboxplot(div_df_melt, x = "variable", y = "value",
+                      fill = "variable", 
+                      palette = "ucscgb", 
+                      legend = "right",
+                      facet.by = "variable", 
+                      scales = "free") +
+            labs(title = "Diversity Indices by Treatment Type (UCSCGB Palette)",
+                 x = "Diversity Index",
+                 y = "Treatment Type")
+
+# Print the plot
+print(p_ucscgb)
+
+# Create a boxplot with the 'uchicago' palette
+p_uchicago <- ggboxplot(div_df_melt, x = "variable", y = "value",
+                        fill = "variable", 
+                        palette = "uchicago", 
+                        legend = "right",
+                        facet.by = "variable", 
+                        scales = "free") +
+              labs(title = "Diversity Indices by Treatment Type (UChicago Palette)",
+                   x = "Diversity Index",
+                   y = "Treatment Type")
+
+# Print the plot
+print(p_uchicago)
+
+# Create a boxplot with the 'simpsons' palette
+p_simpsons <- ggboxplot(div_df_melt, x = "variable", y = "value",
+                        fill = "variable", 
+                        palette = "simpsons", 
+                        legend = "right",
+                        facet.by = "variable", 
+                        scales = "free") +
+              labs(title = "Diversity Indices by Treatment Type (Simpsons Palette)",
+                   x = "Diversity Index",
+                   y = "Treatment Type")
+
+# Print the plot
+print(p_simpsons)
+_________________________________________________________________________________
+_________________________________________________________________________________
+###lefse
+library(phyloseq)
+otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\otu_table_PR2.csv", row.names = 1)
+tax_df <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\taxa-pr2.csv", row.names = 1)
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\all taxa\\meta_data.csv", row.names = 1)
+
+
+otus <- "C:\\Users\\hibaorsud\\Desktop\\all taxa\\OTU_final.fasta"
+refseq <- getSequences(otus)
+ 
+otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+tax_matrix <- as.matrix(tax_df)
+tax_table <- tax_table(tax_matrix)
+ 
+otu_taxa_names <- rownames(otu_table)
+tax_taxa_names <- rownames(tax_table)
+ 
+if (!all(otu_taxa_names %in% tax_taxa_names) || !all(tax_taxa_names %in% otu_taxa_names)) {
+   stop("OTU names and taxonomy names do not match")
+ }
+ 
+#setdiff(otu_taxa_names, tax_taxa_names)
+#setdiff(tax_taxa_names, otu_taxa_names)
+ 
+print(otu_taxa_names)
+print(tax_taxa_names)
+ 
+sample_data <- sample_data(sample_data)
+
+tax_table(ps)
+
+
+library(phyloseq)
+
+# Replace placeholders with your actual data objects
+ps <- phyloseq(
+  otu_table = otu_table,
+  sample_data = sample_data,
+  tax_table = tax_table_ps,
+  tree = treeNJ,
+  refseq = refseq
+)
+
+otu_not_in_tax <- setdiff(otu_taxa_names, tax_taxa_names)
+tax_not_in_otu <- setdiff(tax_taxa_names, otu_taxa_names)
+
+cat("OTU names not in tax_table:", otu_not_in_tax, "\n")
+cat("Tax names not in otu_table:", tax_not_in_otu, "\n")
+
+if (length(otu_not_in_tax) > 0) {
+  tax_table <- tax_table[otu_taxa_names, , drop = FALSE]
+}
+
+if (length(tax_not_in_otu) > 0) {
+  otu_table <- otu_table[tax_taxa_names, , drop = FALSE]
+}
+
+library(phyloseq)
+
+ps <- phyloseq(
+  otu_table(otu_table, taxa_are_rows = TRUE), 
+  sample_data(sample_data), 
+  tax_table(tax_table), 
+  phy_tree(treeNJ), 
+  refseq(refseq)
+)
+
+
+ps <- phyloseq(otu_table, sample_data, tax_table, treeNJ, refseq)
+ 
+print(ps)
+
+sample_data(ps)$Treatment.type <- factor(sample_data(ps)$Treatment.type, 
+                          levels = c(0, 1), 
+                          labels = c("with Immunotherapy", "without Immunotherapy"))
+sample_data(ps)$Event.status <- factor(sample_data(ps)$Event.status, 
+                          levels = c(0, 1), 
+                          labels = c("Responder", "Non-responder"))                          
+sample_data(ps)$Cancer.types <- factor(sample_data(ps)$Cancer.types, 
+                          levels = c(0, 1), 
+                          labels = c("GI", "Non-GI"))
+sample_data(ps)$Baseline.and.follow.ups <- factor(sample_data(ps)$Baseline.and.follow.ups, 
+                          levels = c(1, 2), 
+                          labels = c("B", "F"))                          
+>>>>>>>>>>>>>>>>
+library(microbiomeMarker)
+result <- run_lefse(
+  ps,
+  "Event.status",
+  subgroup = NULL,
+  taxa_rank = "Species",
+  transform = c("identity", "log10", "log10p"),
+  norm = "none",
+  norm_para = list(),
+  kw_cutoff = 0.1,            # Less stringent
+  lda_cutoff = 1,             # Less stringent
+  bootstrap_n = 30,
+  bootstrap_fraction = 2/3,
+  wilcoxon_cutoff = 0.05,      # Less stringent
+  multigrp_strat = FALSE,
+  strict = c("0", "1", "2"),
+  sample_min = 230,               
+  only_same_subgrp = FALSE,
+  curv = FALSE
+)
+
+markers <- result@marker_table
+
+if (is.null(markers) || nrow(markers) == 0) {
+    stop("No markers found in the result object.")
+}
+
+# Convert to data frame if needed
+marker_df <- as.data.frame(markers)
+# Save the data frame as a CSV file
+write.csv(marker_df, file = "marker_table_R_NR_veu.csv", row.names = TRUE)
+
+
+###plot
+
+plot_ef_bar(result, label_level =  1, max_label_len = 60, markers = NULL)+
+        ggtitle("LEfSe Analysis Results") + 
+        theme(
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),  
+        legend.title = element_text(face = "bold", size = 10),   
+        legend.text = element_text(size = 8),   
+        legend.position = "right",   
+        axis.text.x = element_text(angle = 0, hjust = 1)) +
+    labs(fill = "Event.status")+
+    scale_fill_manual(values = c("B" = "chartreuse4", "F" = "brown1"))

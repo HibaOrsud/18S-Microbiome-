@@ -1,0 +1,229 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+its <- ("C:\\Users\\hibaorsud\\Desktop\\ITS2\\OneDrive_1_05-12-2024") 
+list.files(its)
+
+# Forward and reverse fastq filenames have format: SAMPLENAME_R1.fastq and SAMPLENAME_R2.fastq
+itsF <- sort(list.files(its, pattern="_1.fq", full.names = TRUE))
+itsR <- sort(list.files(its, pattern= "_2.fq", full.names = TRUE))
+
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+list.sample.names <- sapply(strsplit(basename(itsF), "_"), `[`, 1)
+list.sample.names
+
+plotQualityProfile(itsF[1:3])
+plotQualityProfile(itsR[1:3])
+
+# Place filtered files in filtered/ subdirectory
+filt.itsF <- file.path(its, "filtered", paste0(list.sample.names, "_F_filt.fastq.gz"))
+filt.itsR <- file.path(its, "filtered", paste0(list.sample.names, "_R_filt.fastq.gz"))
+
+names(filt.itsF) <- list.sample.names
+names(filt.itsR) <- list.sample.names
+
+
+outfit <- filterAndTrim(itsF, filt.itsF, itsR, filt.itsR, truncLen=c(220,240),
+              maxN=0, maxEE=10, truncQ=2, rm.phix=TRUE,
+               compress=TRUE, multithread=FALSE)  
+## Creating output directory: C:\Users\hibaorsud\Desktop\ITS2\OneDrive_1_05-12-2024\filtered\
+head(outfit)
+
+
+
+#run the error rates on the forward reads And on the reverse reads:
+
+errF <- learnErrors(filt.itsF, multithread=FALSE)
+
+errR <- learnErrors(filt.itsR, multithread=FALSE)
+## 108483375 total bases in 394485 reads from 5 samples will be used for learning the error rates.
+#It will take about 30 minutes to run.
+
+
+
+plotErrors(errF, nominalQ=TRUE)
+plotErrors(errR, nominalQ=TRUE)
+
+#apply the core sample inference algorithm on the trimmed and filtered forward and reverse reads.
+
+dadaF <- dada(filt.itsF, err=errF, multithread=FALSE)
+dadaR <- dada(filt.itsR, err=errF, multithread=FALSE)
+
+
+#make a dada-class object that can be visualized using the command below:
+
+dadaF[[1]]
+
+#merge the forward and reverse reads to obtain the full sequences.
+
+merge.reads <- mergePairs(dadaF, filt.itsF, dadaR, filt.itsR, verbose=TRUE)
+
+#we inspect the merger data.frame from the first sample.
+
+head(merge.reads[[1]])
+
+seqtab <- makeSequenceTable(merge.reads)
+dim(seqtab)
+
+# Assuming seqtab is your OTU table (with 46 rows and 1120 columns)
+seqtab_transposed <- t(seqtab)
+
+# Check the new dimensions
+dim(seqtab_transposed)  # Should show 1120 rows and 46 columns
+# Save the transposed OTU table to a CSV file
+write.csv(seqtab_transposed, "transposed_otu_table.csv", row.names = TRUE)
+
+
+#inspect the distribution of sequence lengths:
+
+table(nchar(getSequences(seqtab)))
+
+#remove the chimeric ASVs.
+
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+
+dim(seqtab.nochim)
+
+sum(seqtab.nochim)/sum(seqtab)
+
+getN <- function(x) sum(getUniques(x))
+track.nbr.reads <- cbind(outfit, sapply(dadaF, getN), sapply(dadaR, getN), sapply(merge.reads, getN), rowSums(seqtab.nochim))
+
+colnames(track.nbr.reads) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track.nbr.reads) <- list.sample.names
+head(track.nbr.reads)
+
+# Save seqtab (sequence table)
+write.csv(seqtab, "seqtab.csv", row.names=FALSE)
+
+# Save seqtab.nochim (non-chimeric sequence table)
+write.csv(seqtab.nochim, "seqtab_nochim.csv", row.names=FALSE)
+
+# Save track.nbr.reads (tracking number of reads at each step)
+write.csv(track.nbr.reads, "track_nbr_reads.csv", row.names=TRUE)
+
+# Optionally, you can also save other objects as needed
+lapply(seq_along(merge.reads), function(i) {
+  write.csv(merge.reads[[i]], paste0("merge_reads_", i, ".csv"), row.names = TRUE)
+})
+
+library(dplyr)
+merged_df <- bind_rows(merge.reads)
+write.csv(merged_df, "merge_reads_combined.csv", row.names = TRUE)
+
+library(dplyr)
+library(tidyr)
+# Assuming merge.reads is a list of data frames or matrices with sequence counts
+# Let's first check the structure of merge.reads
+str(merge.reads)
+
+# If merge.reads is a list where each element is a data frame for a sample, 
+# we could create an OTU table by binding rows and using the sequences as OTUs
+# (assuming each row in each data frame has one unique sequence with its abundance)
+
+# Bind rows and convert into a single data frame
+merged_df <- bind_rows(merge.reads)
+
+# Create an OTU table by summarizing counts for each sequence across samples
+otu_table <- merged_df %>%
+  group_by(sequence) %>%
+  summarize(across(starts_with("abundance"), sum)) %>%
+  spread(key = sequence, value = abundance, fill = 0)  # Spread sequences into columns
+
+# View the resulting OTU table
+View(otu_table)
+
+# Save the OTU table as a CSV file
+write.csv(otu_table, "its_otu_table.csv", row.names = TRUE)
+
+
+library(dplyr)
+library(tidyr)  # Ensure tidyr is loaded for pivoting functions
+
+# Assuming your merged_df has columns like sequence, sample names, and abundance
+otu_table <- merged_df %>%
+  group_by(sequence) %>%
+  summarize(across(starts_with("abundance"), sum)) %>%
+  pivot_longer(cols = starts_with("abundance"),
+               names_to = "sample", 
+               values_to = "abundance")  # Reshape to long format with samples as columns
+
+
+# Now assign the sample names to the columns (assuming the number of columns matches)
+colnames(otu_table)[2:ncol(otu_table)] <- sample_names  # Skip the first column (sequence)
+
+# View the resulting OTU table
+View(otu_table)
+
+
+
+# Save the OTU table as a CSV file
+write.csv(otu_table, "its_otu_table.csv", row.names = TRUE)
+
+#Assign taxonomy to the sequence variants
+#SILVA
+taxa1 <- assignTaxonomy(seqtab.nochim, paste(its, "C:\\Users\\hibaorsud\\Desktop\\HIBA_Desktop\\DB_new.fasta", sep=''), multithread=FALSE) 
+
+#PR2
+taxa2 <- assignTaxonomy(seqtab.nochim, paste(its, "C:\\Users\\hibaorsud\\Desktop\\HIBA_Desktop\\PR2\\pr2_version_5.0.0_emu_db.tar\\pr2_version_5.0.0_emu_db\\emu_db\\species_taxid.fasta", sep=''), multithread=FALSE) 
+
+# Removing sequence rownames for display only
+taxa.print <- taxa 
+rownames(taxa.print) <- NULL
+head(taxa.print)
+
+
+
+its_otus <-read.csv("C:\\Users\\hibaorsud\\Desktop\\ITS2\\R outputs\\ITS-transposed_otu_table.csv",
+                      header=TRUE, stringsAsFactors=FALSE)
+                      
+# Check the first rows
+head(its_otus)
+
+
+# Extract the sequences (assume they are in a column named 'sequences')
+sequences <- as.character(its_otus$sequence)
+
+# Confirm the sequences
+print(sequences)                      
+                      
+#Create a simple sequence table
+seq_table <- matrix(1, nrow=length(sequences), ncol=1)
+rownames(seq_table) <- sequences
+
+# Check the sequence table
+print(seq_table)                     
+head(seq_table)                     
+seqs <- getSequences(otus)                      
+# Path to your SILVA database
+db_path <- "C:\\Users\\hibaorsud\\Desktop\\HIBA_Desktop\\silva_nr99_v138.1_train_set.fa"
+
+# Assign taxonomy
+taxas <- assignTaxonomy(seq_table, db_path, multithread=TRUE)
+
+# View the result
+print(taxas)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+db_path <- file.path("C:\\Users\\hibaorsud\\Desktop\\HIBA_Desktop", "silva_nr99_v138.1_train_set.fa")
+taxas <- assignTaxonomy(sequences, db_path, multithread=FALSE)
+
+pr2_path <- file.path("C:\\Users\\hibaorsud\\Desktop\\HIBA_Desktop", "pr2_version_5.0.0_SSU_dada2.fasta")
+taxap <- assignTaxonomy(sequences, pr2_path, multithread=FALSE)

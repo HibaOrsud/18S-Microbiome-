@@ -1,0 +1,69 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+Comparing two phyloseq objects (representing different datasets) in R can involve assessing differences in community composition, diversity, or specific taxonomic groups. Here’s a general guide on how to perform this comparison:
+
+#Ensure Both Datasets Are Compatible, Before comparing, ensure the datasets are compatible: They should have the same taxonomic rank (e.g., genus, species). Normalization may be needed (e.g., rarefaction or relative abundance).
+
+# Normalize both datasets to relative abundance
+ps1.rel <- transform_sample_counts(ps1, function(x) x / sum(x))
+ps2.rel <- transform_sample_counts(ps2, function(x) x / sum(x))
+
+# Aggregate data at the genus level
+ps1.genus <- tax_glom(ps1.rel, taxrank = "Genus")
+ps2.genus <- tax_glom(ps2.rel, taxrank = "Genus")
+
+# Convert to data frames
+df1 <- as.data.frame(otu_table(ps1.genus))
+df2 <- as.data.frame(otu_table(ps2.genus))
+
+# Add taxonomic names
+df1$Taxa <- tax_table(ps1.genus)[, "Genus"]
+df2$Taxa <- tax_table(ps2.genus)[, "Genus"]
+
+# Merge datasets
+df_combined <- merge(df1, df2, by = "Taxa", all = TRUE)
+
+# Plot comparison
+library(tidyr)
+df_melted <- pivot_longer(df_combined, cols = -Taxa, names_to = "Dataset", values_to = "Abundance")
+ggplot(df_melted, aes(x = Taxa, y = Abundance, fill = Dataset)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Taxonomic Abundance Comparison")
+
+======================================================================================================
+#Statistical comparison (e.g., PERMANOVA):
+
+library(vegan)
+dist <- phyloseq::distance(combined, method = "bray")
+adonis2(dist ~ Dataset, data = as(sample_data(combined), "data.frame"))
+
+======================================================================================================
+#Compare Differential Abundance: Use tools like DESeq2, edgeR, or ANCOM to identify significantly different taxa between the two datasets.
+
+library(DESeq2)
+
+combined_dds <- phyloseq_to_deseq2(combined, ~ Dataset)
+combined_dds <- DESeq(combined_dds)
+res <- results(combined_dds)
+
+#Visualize differential abundance:
+
+library(EnhancedVolcano)
+EnhancedVolcano(res, lab = rownames(res), x = 'log2FoldChange', y = 'pvalue')

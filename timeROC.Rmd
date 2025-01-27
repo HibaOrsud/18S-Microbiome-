@@ -1,0 +1,317 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+install.packages("timeROC")
+pbc<-pbc[!is.na(pbc$trt),]
+
+pbc$status<-as.numeric(pbc$status==2)
+
+ROC.bili.marginal<-timeROC(T=pbc$time,
+                  delta=pbc$status,marker=pbc$bili,
+                  cause=1,weighting="marginal",
+                  times=quantile(pbc$time,probs=seq(0.2,0.8,0.1)),
+                  iid=TRUE)
+ROC.bili.marginal
+
+ROC.bili.cox<-timeROC(T=pbc$time,
+                      delta=pbc$status,marker=pbc$bili,
+                      other_markers=as.matrix(pbc[,c("chol","albumin")]),
+                      cause=1,weighting="cox",
+                      times=quantile(pbc$time,probs=seq(0.2,0.8,0.1)))
+ROC.bili.cox
+
+
+ROC.thick<-timeROC(T=Melano$time,delta=Melano$status,
+                   weighting="aalen",
+                   marker=Melano$thick,cause=1,
+                   times=c(1800,2000,2200))
+ROC.thick
+
+ROC.DSST<-timeROC(T=Paquid$time,delta=Paquid$status,
+                  marker=-Paquid$DSST,cause=1,
+                  weighting="cox",
+                  other_markers=as.matrix(Paquid$MMSE),
+                  times=c(3,5,10),ROC=TRUE)
+ROC.DSST 
+plot(ROC.DSST,time=5)  
+-------------------------------------------------------
+library(survival)
+library(timeROC)
+install.packages("parallelly")
+
+firstroc <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\ROC pr2.csv")
+secroc <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\ROC veu.csv")
+wrmroc <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\ROC wrm.csv")
+head(firstroc)
+head(secroc)
+head(wrmroc)
+# Define variables
+time <- firstroc$time
+status <- firstroc$Event.status
+biomarker1 <- firstroc$Blastocystis_hominis
+biomarker2 <- firstroc$Dientamoeba_fragilis
+biomarker3 <- firstroc$Candida_albicans
+
+time <- secroc$time
+status <- secroc$Event.status
+biomarker1 <- secroc$Entamoeba_histolytica
+biomarker2 <- secroc$Histomonas_meleagridis
+biomarker3 <- secroc$Acanthamoeba_mauritaniensis
+biomarker4 <- secroc$Bodo_saltans
+
+time <- wrmroc$time
+status <- wrmroc$Event.status
+biomarker1 <- wrmroc$Globodera.pallida
+biomarker2 <- wrmroc$Schistocephalus.solidus
+
+length(time)
+length(status)
+length(biomarker1)
+
+# Compute time-dependent ROC
+# For biomarker1
+roc1 <- timeROC(T = time, delta = status, marker = biomarker1, 
+                cause = 1, times = c(1, 3, 5) * 365) 
+
+# For biomarker2
+roc2 <- timeROC(T = time, delta = status, marker = biomarker2, 
+                cause = 1, times = c(1, 3, 5) * 365)
+
+# For biomarker3
+roc3 <- timeROC(T = time, delta = status, marker = biomarker3, 
+                cause = 1, times = c(1, 3, 5) * 365)
+
+roc4 <- timeROC(T = time, delta = status, marker = biomarker4, 
+                cause = 1, times = c(1, 3, 5) * 365)
+
+#Compare the AUC Values: You can compare the AUC values for each biomarker at different time points.
+
+
+# AUC for biomarker1
+roc1$AUC
+
+# AUC for biomarker2
+roc2$AUC
+
+# AUC for biomarker3
+roc3$AUC
+
+roc4$AUC
+
+roc1$times  # To check the actual time points available
+roc1$FP     # To see the False Positive Rate matrix
+roc1$TP     # To see the True Positive Rate matrix
+
+
+roc2$times  
+roc2$FP     
+roc2$TP 
+
+roc3$times 
+roc3$FP     
+roc3$TP 
+
+roc4$times 
+roc4$FP     
+roc4$TP
+
+
+#plot roc
+plot(roc1$FP[,1], roc1$TP[,1], type = "l",col = "red", 
+     xlab = "Specificity(1 – False Positive Rate)", ylab = "Sensitivity(True Positive Rate)", 
+     main = "ROC Curves at 3 Years", lwd = 3, pch = 16)
+
+length(roc1$FP[,1])
+length(roc1$TP[,1])
+
+sum(is.na(roc1$FP[,1]))
+sum(is.na(roc1$TP[,1]))
+
+str(roc1$FP)
+
+.......................
+plot(roc2$FP[,1], roc2$TP[,1], type = "l",col = "blue", 
+     xlab = "Specificity(1 – False Positive Rate)", ylab = "Sensitivity(True Positive Rate)", 
+     main = "ROC Curves at 3 Years", lwd = 3, pch = 16)
+.......................
+
+# Add ROC curve for biomarker2 at 3 years
+lines(roc2$FP[,1], roc2$TP[,1], col = "blue", lwd = 3)
+
+# Add ROC curve for biomarker3 at 3 years
+lines(roc3$FP[,1], roc3$TP[,1], col = "green", lwd = 3)
+
+lines(roc4$FP[,1], roc4$TP[,1], col = "violet", lwd = 3)
+
+legend("bottomright", legend = c("Entamoeba_histolytica", "Histomonas_meleagridis", "Acanthamoeba_mauritaniensis", "Bodo_saltans"),
+        col = c("red", "blue", "green", "violet"), lwd = 3)
+------------------------------------------------------------------------------------------------
+legend("bottomright", legend = c("Blastocystis_hominis", "Candida_albicans", "Dientamoeba_fragilis"),
+        col = c("red", "blue", "green"), lwd = 3)
+
+------------------------------------------------------------------------------------------------
+legend("bottomright", legend = c("Globodera.pallida", "Schistocephalus.solidus"),
+        col = c("red", "blue", "green"), lwd = 3)
+------------------------------------------------------------------------------------------------
+......................
+legend("bottomright", legend = c("Histomonas_meleagridis", "Bodo_saltans"),
+        col = c("blue", "violet"), lwd = 3)
+
+.....................
+# Place the legend outside the plot, below
+legend("bottom", inset = -0.3, legend = c("Entamoeba_histolytica", "Histomonas_meleagridis", "Acanthamoeba_mauritaniensis", "Bodo_saltans"),
+       col = c("red", "blue", "green", "violet"), lwd = 3, xpd = TRUE, horiz = TRUE)    
+
+# Add baseline diagonal (no discrimination line)
+abline(0, 1, col = "black", lty = 3, lwd = 2) # Dashed line with slope = 1
+
+.........................................................................................................
+roc1_data <- data.frame(
+  TP = roc1$TP,
+ FP= roc1$FP,
+  AUC = roc1$AUc,
+  times = roc1$times
+)
+write.csv(roc1$value, file = "roc1-veu.csv", row.names = TRUE)
+........................................................................................................
+install.packages("pROC")
+library(pROC)
+
+# Convert status to factor if it isn't already
+firstroc$Event.status <- as.factor(firstroc$Event.status)
+
+
+# Check for missing values
+sum(is.na(firstroc$status))
+sum(is.na(firstroc$biomarker1))
+
+# Check for unique values in status
+unique(firstroc$status)
+
+# Compute ROC curve
+roc_curve <- roc(firstroc$status, firstroc$biomarker1, levels = c("0", "1"))
+roc_curve <- roc(status, biomarkers, levels = c("0", "1"))
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+
+# Display AUC
+auc_value <- auc(roc_curve)
+print(paste("AUC:", auc_value))
+
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+
+roc(firstroc$status, firstroc$biomarker1,
+    levels=c("0", "1"))
+............................................................................................
+
+status <- firstroc$Event.status
+head(status)
+biomarker1 <- firstroc$Blastocystis_hominis
+biomarker2 <- firstroc$Dientamoeba_fragilis
+biomarker3 <- firstroc$Candida_albicans
+head(biomarker1)
+
+biomarkers <- data.frame(biomarker1, biomarker2, biomarker3)
+
+# Generate the ROC curve
+roc_obj <- roc(status, biomarker1,levels = c(0, 1), direction = "<")
+
+# Plot the ROC curve
+plot(roc_obj, col = "#1c61b6", lwd = 2, main = "ROC Curve")
+
+
+
+..........................................................
+
+
+# Loop through each biomarker and create a ROC curve
+for (i in 1:ncol(biomarkers)) {
+  biomarker_name <- colnames(biomarkers)[i]
+  roc_obj <- roc(status, biomarkers[[i]], levels = c(0, 1), direction = "<")
+  
+#Plot ROC curve
+  plot(roc_obj, col = colors[i], lwd = 2, add = TRUE)
+  
+  
+#Pause between plots
+  readline(prompt = "Press [enter] to see the next plot")
+
+
+}
+
+
+........................................................................................
+
+# Colors for the ROC curves
+colors <- c("#1c61b6", "#ff6347", "#32cd32")
+
+# Initialize plot
+#plot(NULL, xlim = c(0, 1), ylim = c(0, 1), xlab = "1 - Specificity", ylab = "Sensitivity",
+     main = "ROC Curves for Multiple Biomarkers")
+
+# Add diagonal line for reference
+#abline(0, 1, col = "gray", lty = 3)
+
+# Loop through each biomarker and plot the ROC curve on the same plot
+for (i in 1:ncol(biomarkers)) {
+  biomarker_name <- colnames(biomarkers)[i]
+  roc_obj <- roc(status, biomarkers[[i]], levels = c(0, 1), direction = "auto")
+  
+#Plot ROC curve for this biomarker
+  plot(roc_obj, col = colors[i], lwd = 2, add = TRUE)
+  
+#Add AUC to the plot as text
+  auc_value <- auc(roc_obj)
+  text(0.6, 0.4 - i * 0.05, paste("AUC =", round(auc_value, 2)),
+       col = colors[i], cex = 1.0)
+}
+
+# Add a legend to the plot
+legend("bottomright", legend = c("Blastocystis_hominis", "Dientamoeba_fragilis", "Candida_albicans"), col = colors, lwd = 2)
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Generate the ROC curve
+roc_obj <- roc(status, biomarker1,levels = c(0, 1), direction = "<")
+
+# Plot the ROC curve
+plot(roc_obj, col = "#1c61b6", lwd = 2, main = "ROC Curve")
+
+# Add AUC to the plot
+auc_value <- auc(roc_obj)
+text(0.5, 0.4, paste("AUC =", round(auc_value, 2)), col = "red", cex = 1.5)
+
+# Loop through each biomarker and create a ROC curve
+for (i in 1:ncol(biomarkers)) {
+  biomarker_name <- colnames(biomarkers)[i]
+  roc_obj <- roc(status, biomarkers[[i]], levels = c(0, 1), direction = "<")
+  
+#Plot ROC curve
+  plot(roc_obj, col = colors[i], lwd = 2, add = TRUE)
+  
+  
+#Pause between plots
+  readline(prompt = "Press [enter] to see the next plot")
+
+#Add AUC to the plot as text
+auc_value <- auc(roc_obj)
+  text(0.6, 0.4 - i * 0.05, paste("AUC =", round(auc_value, 2)),
+       col = colors[i], cex = 0.7)
+}
+

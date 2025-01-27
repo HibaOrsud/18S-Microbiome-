@@ -1,0 +1,441 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+###lefse
+library(phyloseq)
+otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\follow-ups\\new-otu-table-F.csv", row.names = 1)
+tax_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new.taxa_table-worm - updated.csv", row.names = 1)
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\follow-ups\\new-metadata-F.csv", row.names = 1)
+
+#convert to phyloseq object
+otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+ tax_matrix <- as.matrix(tax_table)
+ tax_table <- tax_table(tax_matrix)
+ 
+sample_data <- sample_data(sample_data)
+ 
+#Combine into a phyloseq object
+physeq <- phyloseq(otu_table, tax_table, sample_data, treeNJ)
+
+print(physeq)
+
+
+
+
+# Define the standard ranks
+standard_ranks <- c("Species")
+
+# Filter the taxonomy table to include only the standard ranks
+filtered_tax_table <- tax_table[, standard_ranks, drop = FALSE]
+
+# Replace the taxonomy table in the phyloseq object
+tax_table_ps<- filtered_tax_table
+
+
+tax_table_ps
+
+ps <- phyloseq(otu_table, tax_table_ps, sample_data, treeNJ)
+
+print(ps)
+
+
+#factorize Treatment.type , Event.status, Cancer.types , BF
+sample_data(ps)$Treatment.type <- factor(sample_data(ps)$Treatment.type, 
+                                             levels = c(0, 1), 
+                                             labels = c("with Immunotherapy", "without Immunotherapy"))
+
+
+sample_data(ps)$Event.status <- factor(sample_data(ps)$Event.status, 
+                                             levels = c(0, 1), 
+                                             labels = c("Responder", "Non-responder"))
+
+
+sample_data(ps)$Cancer.types <- factor(sample_data(ps)$Cancer.types, 
+                                             levels = c(0, 1), 
+                                             labels = c("GI", "Non-GI"))
+                                             
+sample_data(ps)$BF.groups <- factor(sample_data(ps)$BF.groups, 
+                                             levels = c(1, 2), 
+                                             labels = c("B", "F"))   
+................
+# Check the tax_table
+print(tax_table(ps))
+
+# Check taxa ranks
+print(rank_names(ps))
+
+# Remove taxa with no classification
+ps <- prune_taxa(taxa_sums(ps) > 0, ps)
+
+# Detach the tidytree package if it's not needed
+detach("package:tidytree", unload = TRUE)
+
+................
+                                             
+>>>>>>>>>>>>>>>>
+library(microbiomeMarker)
+result <- run_lefse(
+  ps,
+  "Event.status",
+  subgroup = NULL,
+  taxa_rank = "Species",
+  transform = c("identity", "log10", "log10p"),
+  norm = "none",
+  norm_para = list(),
+  kw_cutoff = 0.5,            # Less stringent
+  lda_cutoff = 3,             # Less stringent
+  bootstrap_n = 30,
+  bootstrap_fraction = 2/3,
+  wilcoxon_cutoff = 0.05,      # Less stringent
+  multigrp_strat = FALSE,
+  strict = c("0", "1", "2"),
+  sample_min = 230,               
+  only_same_subgrp = FALSE,
+  curv = FALSE
+)   
+
+
+markers <- result@marker_table
+
+if (is.null(markers) || nrow(markers) == 0) {
+    stop("No markers found in the result object.")
+}
+
+###plot
+library(ggplot2)
+
+plot_ef_bar(result, label_level =  1, max_label_len = 60, markers = NULL)+
+        ggtitle("LEfSe Analysis Results") + 
+        theme(
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),  
+        legend.title = element_text(face = "bold", size = 10),   
+        legend.text = element_text(size = 8),   
+        legend.position = "right",   
+        axis.text.x = element_text(angle = 0, hjust = 1)) +
+    labs(fill = "Cancer.types")+
+    scale_fill_manual(values = c("with Immunotherapy" = "chartreuse4", "without Immunotherapy" = "brown1"))
+    
+   
+ >>>>
+ plot_heatmap(result, group = "Treatment.type")   
+ >>>>>
+ 
+>>>>>>>>>>>>>>>>>
+#Cladogram
+mm_lefse <- run_lefse(
+    ps,
+    wilcoxon_cutoff = 0.5,
+    group = "Event.status",
+    kw_cutoff = 0.5,
+    multigrp_strat = TRUE,
+    lda_cutoff = 2
+)
+plot_cladogram(mm_lefse, color = c("darkgreen", "red"))
+
+
+# Save the cladogram with larger dimensions and higher resolution
+tiff("cladogram_improved.tiff", width = 10, height = 10, units = "in", res = 300)  # Increase size and resolution
+plot_cladogram(mm_lefse, color = c("darkgreen", "red"))  # Plot cladogram
+dev.off()
+
+
+# Generate the cladogram without the legend
+plot_cladogram_no_legend <- plot_cladogram(
+    mm_lefse, 
+    color = c("darkgreen", "red")
+) +
+  theme(legend.position = "none")  # Remove the legend
+
+# Save the plot without the legend
+ggsave("cladogram_no_legend.tiff", plot = plot_cladogram_no_legend, width = 8, height = 8, dpi = 300, units = "in")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##merge phyloseqs 
+ merged_phyloseq <- merge_phyloseq(physeq_p, physeq_s, physeq_v, physeq_w)
+
+# Load required libraries
+library(phyloseq)
+
+# Find common taxa among all phyloseq objects
+common_taxa <- intersect(intersect(taxa_names(physeq_p), taxa_names(physeq_s)),
+                         intersect(taxa_names(physeq_v), taxa_names(physeq_w)))
+
+# Prune each phyloseq object to keep only common taxa
+physeq_p_pruned <- prune_taxa(common_taxa, physeq_p)
+physeq_s_pruned <- prune_taxa(common_taxa, physeq_s)
+physeq_v_pruned <- prune_taxa(common_taxa, physeq_v)
+physeq_w_pruned <- prune_taxa(common_taxa, physeq_w)
+    
+#merge
+# Merge the pruned phyloseq objects
+merged_phyloseq <- merge_phyloseq(physeq_p_pruned, physeq_s_pruned, physeq_v_pruned, physeq_w_pruned)
+
+# Verify the merged phyloseq object
+merged_phyloseq
+
+# Extract taxonomic tables from each phyloseq object
+tax_p <- tax_table(physeq_p)
+tax_s <- tax_table(physeq_s)
+tax_v <- tax_table(physeq_v)
+tax_w <- tax_table(physeq_w)
+
+# Convert to data frames
+tax_p_df <- as.data.frame(tax_p)
+tax_s_df <- as.data.frame(tax_s)
+tax_v_df <- as.data.frame(tax_v)
+tax_w_df <- as.data.frame(tax_w)
+
+library(dplyr)
+library("tibble")
+
+# Convert row names to a column
+tax_p_df <- tax_p_df %>% rownames_to_column(var = "TaxonID")
+tax_s_df <- tax_s_df %>% rownames_to_column(var = "TaxonID")
+tax_v_df <- tax_v_df %>% rownames_to_column(var = "TaxonID")
+tax_w_df <- tax_w_df %>% rownames_to_column(var = "TaxonID")
+
+
+# Combine the data frames
+merged_tax_df <- full_join(tax_p_df, tax_s_df, by = "TaxonID")
+merged_tax_df <- full_join(merged_tax_df, tax_v_df, by = "TaxonID")
+merged_tax_df <- full_join(merged_tax_df, tax_w_df, by = "TaxonID")
+
+
+# Set the row names and remove the extra column
+rownames(merged_tax_df) <- merged_tax_df$Row.names
+merged_tax_df <- merged_tax_df[,-1]
+
+# Convert back to taxonomic table
+merged_tax_table <- as.matrix(merged_tax_df)
+merged_tax_table <- tax_table(merged_tax_table)
+
+---
+# Example: create a new phyloseq object with merged taxonomic table and one OTU table
+new_phyloseq <- phyloseq(otu_table(physeq_p), sample_data(physeq_p), merged_tax_table)
+----
+# Convert row names to a column
+otu_p_df <- as.data.frame(otu_p) %>% rownames_to_column(var = "OTU_ID")
+otu_s_df <- as.data.frame(otu_s) %>% rownames_to_column(var = "OTU_ID")
+otu_v_df <- as.data.frame(otu_v) %>% rownames_to_column(var = "OTU_ID")
+otu_w_df <- as.data.frame(otu_w) %>% rownames_to_column(var = "OTU_ID")
+
+# Combine the data frames
+merged_otu_df <- full_join(otu_p_df, otu_s_df, by = "OTU_ID")
+merged_otu_df <- full_join(merged_otu_df, otu_v_df, by = "OTU_ID")
+merged_otu_df <- full_join(merged_otu_df, otu_w_df, by = "OTU_ID")
+
+# Set the OTU_ID column as row names and remove it from the data frame
+rownames(merged_otu_df) <- merged_otu_df$OTU_ID
+merged_otu_df <- merged_otu_df[ , -which(names(merged_otu_df) == "OTU_ID")]
+
+# Convert back to OTU table
+merged_otu <- as.matrix(merged_otu_df)
+merged_otu <- otu_table(merged_otu, taxa_are_rows = TRUE)
+
+# Create the new phyloseq object
+new_phyloseq <- phyloseq(merged_otu, sample_data(physeq_p), merged_tax_table)
+
+new_phyloseq
+
+# Ensure row names (taxa names) match in both OTU table and taxonomic table
+taxa_in_otu <- rownames(merged_otu)
+taxa_in_tax <- rownames(merged_tax_table)
+
+# Identify mismatched taxa
+taxa_mismatch <- setdiff(taxa_in_otu, taxa_in_tax)
+
+if(length(taxa_mismatch) > 0) {
+#If there are mismatched taxa, print them
+  print(paste("Mismatched taxa:", paste(taxa_mismatch, collapse = ", ")))
+  
+#Subset the OTU table to only include taxa present in the taxonomic table
+  merged_otu <- merged_otu[taxa_in_tax, ]
+}
+
+# Ensure the row names of the OTU table match the row names of the taxonomic table
+rownames(merged_otu) <- rownames(merged_tax_table)
+
+# Get sample names from both the OTU table and sample data
+sample_names_otu <- colnames(merged_otu)
+sample_names_sample_data <- rownames(sample_data(physeq_p))
+
+# Identify mismatched sample names
+sample_mismatch_otu <- setdiff(sample_names_otu, sample_names_sample_data)
+sample_mismatch_sample_data <- setdiff(sample_names_sample_data, sample_names_otu)
+
+# Print mismatched sample names
+print(paste("Mismatched samples in OTU but not in sample data:", paste(sample_mismatch_otu, collapse = ", ")))
+print(paste("Mismatched samples in sample data but not in OTU:", paste(sample_mismatch_sample_data, collapse = ", ")))
+
+# Subset the OTU table to include only the samples present in the sample data
+common_samples <- intersect(sample_names_otu, sample_names_sample_data)
+merged_otu <- merged_otu[, common_samples, drop = FALSE]
+
+# Ensure the sample names in the OTU table match the sample names in the sample data
+colnames(merged_otu) <- common_samples
+sample_data_subset <- sample_data(physeq_p)[common_samples, ]
+
+# Ensure the sample names in the OTU table match the sample names in the sample data
+colnames(merged_otu) <- common_samples
+sample_data_subset <- sample_data(physeq_p)[common_samples, ]
+
+
+# Standardize sample names in the OTU table by removing suffixes
+standardize_names <- function(names) {
+  sub("\\..*", "", names)
+}
+
+# Apply standardization
+standardized_sample_names_otu <- standardize_names(sample_names_otu)
+
+# Update the OTU table with standardized sample names
+colnames(merged_otu) <- standardized_sample_names_otu
+
+# Identify common samples
+common_samples <- intersect(standardized_sample_names_otu, sample_names_sample_data)
+
+if(length(common_samples) == 0) {
+  stop("No common samples found after standardization.")
+}
+
+# Subset OTU table and sample data to include only common samples
+merged_otu_subset <- merged_otu[, common_samples, drop = FALSE]
+sample_data_subset <- sample_data(physeq_p)[common_samples, ]
+
+# Create the new phyloseq object
+new_phyloseq <- phyloseq(otu_table(merged_otu_subset, taxa_are_rows = TRUE), sample_data(sample_data_subset), tax_table(merged_tax_table))
+
+# Verify the new phyloseq object
+print(new_phyloseq)
+
+# Load the openxlsx library
+install.packages("openxlsx")
+library(openxlsx)
+
+# Specify the file path where you want to save the Excel file
+file_path <- "merged_tax_df.xlsx"
+
+# Save as Excel (.xlsx)
+write.xlsx(merged_tax_df, file = file_path, rowNames = TRUE)
+
+
+# Display the column names of the tax table
+available_ranks <- colnames(merged_tax_table)
+print(available_ranks)
+
+# Define the standard ranks (update this based on available ranks)
+standard_ranks <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species")
+
+# Filter to only include available ranks in the tax table
+filtered_standard_ranks <- standard_ranks[standard_ranks %in% available_ranks]
+
+print(filtered_standard_ranks)
+
+# Filter the tax table to include only the standard ranks
+filtered_tax_table <- merged_tax_table[, filtered_standard_ranks, drop = FALSE]
+
+
+# Define the standard ranks
+standard_ranks <- c("Species")
+
+# Filter the taxonomy table to include only the standard ranks
+filtered_tax_table <- merged_tax_table[, standard_ranks, drop = FALSE]
+
+# Replace the taxonomy table in the phyloseq object
+tax_table_ps<- filtered_tax_table
+
+
+tax_table_ps
+
+ps <- phyloseq(otu_table, tax_table_ps, sample_data)
+
+print(ps)
+
+
+
+
+
+#factorize Treatment.type , Event.status, Cancer.types , BF
+sample_data(ps)$Treatment.type <- factor(sample_data(ps)$Treatment.type, 
+                                             levels = c(0, 1), 
+                                             labels = c("with Immunotherapy", "without Immunotherapy"))
+
+
+sample_data(new_phyloseq)$Event.status <- factor(sample_data(merged_phyloseq)$Event.status, 
+                                             levels = c(0, 1), 
+                                             labels = c("Responder", "Non-responder"))
+
+
+sample_data(ps)$Cancer.types <- factor(sample_data(ps)$Cancer.types, 
+                                             levels = c(0, 1), 
+                                             labels = c("GI", "Non-GI"))
+                                             
+sample_data(ps)$Baseline.and.follow.ups <- factor(sample_data(ps)$Baseline.and.follow.ups, 
+                                             levels = c(1, 2), 
+                                             labels = c("B", "F"))   
+                                             
+
+
+
+
+ result <- run_lefse(
+  new_phyloseq,
+  "Event.status",
+  subgroup = all,
+  taxa_rank = "Family",
+  transform = c("identity", "log10", "log10p"),
+  norm = "none",
+  norm_para = list(),
+  kw_cutoff = 0.5,            # Less stringent
+  lda_cutoff = 2,             # Less stringent
+  bootstrap_n = 30,
+  bootstrap_fraction = 2/3,
+  wilcoxon_cutoff = 0.05,      # Less stringent
+  multigrp_strat = FALSE,
+  strict = c("0", "1", "2"),
+  sample_min = 230,               
+  only_same_subgrp = FALSE,
+  curv = FALSE
+)      
+ 
