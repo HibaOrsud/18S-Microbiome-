@@ -1,0 +1,192 @@
+
+library(ALDEx2)
+
+# Transpose for ALDEx2 (samples as rows)
+otu_for_aldex <- as.data.frame(t(otu_by_species))
+........................
+ncol(otu_for_aldex)
+length(conds)
+
+
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
+group <- c(0, 0, 0, 0, 1, 1, 1, 1)  # From your table
+conds <- ifelse(group == 0, "CF", "CG")
+conds
+>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+...........................
+# Create condition vector
+conds <- read.csv("C:\\Users\\hibaorsud\\Desktop\\3primers-data\\re-analysis\\8_sample_data.csv", row.names = 1)
+
+#conds <- c("CF", "CF", "CF", "CF", "CG", "CG","CG", "CG") # update based on your metadata
+colnames(otu_for_aldex)
+
+otu_for_aldex <- as.data.frame(otu_by_species)
+head(otu_for_aldex)[, 1:5]
+
+# Collapse duplicate sample columns, or select just one source (e.g., ITS2)
+otu_for_aldex <- otu_combined[, unique(colnames(otu_combined))]
+............................
+# Match the correct sample order
+sample_names <- colnames(otu_for_aldex)
+
+# Assign conditions manually (must match `sample_names` order exactly)
+conds <- c("CF", "CF", "CF", "CF", "CG", "CG", "CG","CG", "CF", "CF", "CF", "CF", "CG", "CG", "CG", "CG")
+
+............................
+
+# Run ALDEx2
+aldex_clr <- aldex.clr(otu_for_aldex, conds, mc.samples = 128, denom = "all", verbose = FALSE)
+aldex_result <- aldex.ttest(aldex_clr)
+aldex_effect <- aldex.effect(aldex_clr)
+
+# Combine results
+aldex_output <- cbind(aldex_result, aldex_effect)
+head(aldex_output)
+
+#Add significance flag
+
+aldex_output$significant <- ifelse(aldex_output$we.ep < 0.05, "*", "")
+
+library(ggplot2)
+
+# Volcano plot for ALDEx2
+ggplot(aldex_output, aes(x = effect, y = -log10(we.ep))) +
+  geom_point(aes(color = we.ep < 0.05), size = 2) +
+  geom_text(data = subset(aldex_output, we.ep < 0.05), 
+            aes(label = rownames(subset(aldex_output, we.ep < 0.05))),
+            hjust = 0, vjust = 0.5, size = 3, check_overlap = TRUE) +
+  scale_color_manual(values = c("FALSE" = "grey60", "TRUE" = "red")) +
+  theme_minimal() +
+  labs(title = "ALDEx2 Volcano Plot",
+       x = "Effect Size (Difference Between Groups)",
+       y = "-log10 Adjusted p-value (Welch's test)",
+       color = "Significant (p < 0.05)")
+
+#Effect Plot
+ggplot(aldex_output, aes(x = diff.btw, y = diff.win)) +
+  geom_point(aes(color = we.ep < 0.05), size = 2) +
+  geom_text(data = subset(aldex_output, we.ep < 0.05), 
+            aes(label = rownames(subset(aldex_output, we.ep < 0.05))),
+            hjust = 0, vjust = 0.5, size = 3, check_overlap = TRUE) +
+  scale_color_manual(values = c("FALSE" = "grey60", "TRUE" = "blue")) +
+  theme_minimal() +
+  labs(title = "ALDEx2 Effect Plot",
+       x = "Difference Between Groups",
+       y = "Difference Within Groups",
+       color = "Significant (p < 0.05)")
+////////////////////////////////////////////////////////////////////////////////////
+#optimzed;;;;;;;;;
+library(ggplot2)
+library(dplyr)
+library(tibble)
+
+# Convert rownames to a column for labeling
+aldex_output <- aldex_output %>% rownames_to_column("Taxon")
+
+# Select top 10 significant features
+top_labels <- aldex_output %>%
+  filter(we.ep < 0.05) %>%
+  arrange(we.ep) %>%
+  head(10)
+
+# Volcano Plot
+ggplot(aldex_output, aes(x = effect, y = -log10(we.ep))) +
+  geom_point(aes(color = ifelse(effect > 0, "CG", "CF")), size = 2) +
+  geom_text(data = top_labels, aes(label = Taxon),
+            hjust = 0.5, vjust = 0.5, size = 3, check_overlap = TRUE) +
+  scale_color_manual(values = c("CF" = "chartreuse4", "CG" = "brown1")) +
+  theme_minimal() +
+  labs(
+    title = "ALDEx2 Volcano Plot by Group Enrichment-ITS1",
+    x = "Effect Size (Difference Between Groups)",
+    y = "-log10 Adjusted p-value (Welch's test)",
+    color = "Enriched Group",
+      caption = "Labeled taxa have adjusted p-value < 0.05"
+  )
+
+/////////////////////////////////////////////////////////////////////////
+#PCA
+aldex_clr <- aldex.clr(otu_for_aldex, conds, mc.samples = 128, denom = "all", verbose = TRUE)
+
+# PCA on the median clr values
+clr_matrix <- data.frame(t(aldex_clr@reads))  # Transpose to get samples as rows
+pca_res <- prcomp(clr_matrix, scale. = TRUE)
+
+# Prepare sample metadata (e.g., group = CF/CG)
+metadata <- data.frame(
+  Sample = rownames(clr_matrix),
+  Group = conds
+)
+
+# Combine PCA scores with metadata
+pca_df <- data.frame(pca_res$x, metadata)
+
+# Plot PCA
+library(ggplot2)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, color = Group)) +
+  geom_point(size = 4) +
+  stat_ellipse(type = "t", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "PCA of ALDEx2 clr-for combined 18,ITS1& ITS2",
+    x = paste0("PC1 (", round(summary(pca_res)$importance[2, 1] * 100, 1), "%)"),
+    y = paste0("PC2 (", round(summary(pca_res)$importance[2, 2] * 100, 1), "%)")
+  ) +
+  scale_color_manual(values = c("CF" = "cyan3", "CG" = "tomato"))
+
+////////////////////////////////////////////////////////////////////////////////////////
+#alpha div using aldex;;;;
+
+library(phyloseq)
+library(microbiome)
+
+# Transform to relative abundance if not done
+ps_rel <- transform_sample_counts(physeq, function(x) x / sum(x))
+
+# Alpha diversity measures
+plot_richness(ps, x = "group", measures = c("Shannon", "Simpson", "Observed")) +
+  theme_minimal() +
+  labs(title = "Alpha Diversity Between Groups",
+       y = "Diversity Index",
+       x = "Group")
+
+...................................................................................
+library(ggplot2)
+library(phyloseq)
+
+# Extract alpha diversity
+alpha_df <- plot_richness(ps, x = "group", measures = c("Observed", "Shannon", "Simpson"))$data
+
+# Plot with boxplots and points
+ggplot(alpha_df, aes(x = group, y = value, fill = group)) +
+  geom_boxplot(alpha = 0.6, width = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.2, size = 2) +
+  facet_wrap(~ variable, scales = "free_y") +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  scale_fill_manual(values = c("CF" = "cyan3", "CG" = "tomato")) +
+  theme_minimal() +
+  labs(
+    title = "Alpha Diversity Between CF and CG Groups - combined ITS1 and ITS2",
+    x = "Groups",
+    y = "Diversity Index"
+  ) +
+  theme(
+    strip.text = element_text(face = "bold", size = 12),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+library(ggpubr)
+
+ggplot(alpha_df, aes(x = group, y = value, fill = group)) +
+  geom_boxplot(alpha = 0.6) +
+  geom_jitter(width = 0.2) +
+  facet_wrap(~ variable, scales = "free_y") +
+  stat_compare_means(method = "wilcox.test", label = "p.format") +
+  scale_fill_manual(values = c("CF" = "cyan3", "CG" = "tomato")) +
+  theme_minimal() +
+  labs(title = "Alpha Diversity Between CF and CG Groups - combined ITS1 and ITS2", x = "Group", y = "Diversity Index")
