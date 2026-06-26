@@ -1,0 +1,99 @@
+
+ ##phylogenetic tree construction:
+
+ 
+seqs <- getSequences(otureads)
+
+head(seqs)
+
+names(seqs) <- seqs
+
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA,verbose=FALSE)
+
+phangAlign <- phyDat(as(alignment, "matrix"), type="DNA")
+
+dm <- dist.ml(phangAlign)
+
+treeNJ <- NJ(dm)
+
+fit = pml(treeNJ, data=phangAlign)
+
+fitGTR <- update(fit, k=4, inv=0.2)
+
+fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
+
+rearrangement = "stochastic", control = pml.control(trace = 0))
+
+detach("package:phangorn", unload=TRUE)
+
+print(dm)
+
+print(treeNJ)
+
+plot(treeNJ)
+
+treeNJ <- root(treeNJ, outgroup = 3)
+
+#Output: phylogenetic tree
+
+otu_table <- read.csv("path_to_otu_table_in_CSV_format", row.names = 1)
+
+otu_table <- otu_table(otu_table, taxa_are_rows = TRUE)
+
+tax_table <- read.csv("path_to_taxa_table_in_CSV_format ", row.names = 1)
+
+tax_table <- tax_table(tax_table)
+
+tax_table <- as.matrix(tax_table)
+ 
+sample_data <- read.csv("path_to_samples_data_in_CSV_format ", row.names = 1)
+
+sample_data <- sample_data(sample_data)
+
+
+
+tax_matrix <- as.matrix(tax_table)
+
+tax_table <- tax_table(tax_matrix)
+
+print(tax_table)
+
+otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+
+tax_matrix <- as.matrix(tax_table)
+
+tax_table <- tax_table(tax_matrix)
+
+# Check if row names match
+
+otu_taxa_names <- rownames(otu_table)
+
+tax_taxa_names <- rownames(tax_table)
+
+
+
+if (!all(otu_taxa_names %in% tax_taxa_names) ||
+!all(tax_taxa_names %in% otu_taxa_names)) {
+
+stop("OTU names and taxonomy names do not match")
+
+}
+
+print(otu_taxa_names)
+
+print(tax_taxa_names)
+
+# Ensure sample data is formatted correctly
+
+sample_data <- sample_data(sample_data)
+
+# Ensure all sample names match
+
+otu_sample_names <- sample_names(otu_table)
+
+taxonomy_sample_names <- sample_names(tax_table)
+
+sample_data_names <- sample_names(sample_data)
+ 
+ 
+Output: phyloseq object combined otu_table, tax_table, sample_data, and phylogenetic tree
