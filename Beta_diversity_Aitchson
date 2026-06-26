@@ -1,0 +1,148 @@
+##with aiming covariants matching and adjusments
+##Aitchson_Euclidean_distance_based
+# CLR transform
+ps_clr <- microbiome::transform(matched_meta, "clr")
+
+# Euclidean distance on CLR data = Aitchison distance
+aitchison_dist <- phyloseq::distance(ps_clr, method = "euclidean")
+
+permanova_ait <- adonis2(
+  aitchison_dist ~ Cancer.types + gender + BMI + age + Chemotherapy + WHO,
+  data = matched_meta,
+  permutations = 999,
+  by = "margin"
+)
+
+permanova_ait
+
+# Extract Cancer.types result
+r2_cancer <- round(permanova_ait["Cancer.types", "R2"], 3)
+p_cancer  <- permanova_ait["Cancer.types", "Pr(>F)"]
+
+p_label <- ifelse(
+  p_cancer < 0.001,
+  "p < 0.001",
+  paste0("p = ", round(p_cancer, 3))
+)
+
+# NMDS ordination
+ord_nmds_clr <- ordinate(
+  ps_clr,
+  method = "NMDS",
+  distance = "euclidean"
+)
+
+# Plot with ellipse
+plot_ordination(
+  ps_clr,
+  ord_nmds_clr,
+  color = "Cancer.types"
+) +
+  geom_point(size = 4) +
+  stat_ellipse(
+    aes(color = Cancer.types),
+    type = "t",
+    level = 0.95,
+    linewidth = 1
+  ) +
+  theme_bw(base_size = 14) +
+  labs(
+    title = "NMDS based on Aitchison distance",
+    subtitle = paste0(
+      "Adjusted PERMANOVA for Cancer type: R² = ",
+      r2_cancer,
+      ", ",
+      p_label
+    ),
+    color = "Cancer type"
+  )
+  
+/////////////////////////////////////////////////////////////////////  
+physeq <- phyloseq(otu_table, tax_table, sample_data)
+# Print phyloseq object
+print(physeq)
+bc_all <- phyloseq::distance(ps, method = "bray")
+meta2 <- meta[match(sample_names(ps), meta$Sample.ID), ]
+
+_________________________________________________________
+# Samples in phyloseq/distance but missing from metadata
+missing_in_meta <- setdiff(labels(bc_all), meta$Sample.ID)
+missing_in_meta
+
+# Samples in metadata but missing from phyloseq
+missing_in_ps <- setdiff(meta$Sample.ID, labels(bc_all))
+missing_in_ps
+
+common_samples <- intersect(labels(bc_all), meta$Sample.ID)
+
+ps_common <- prune_samples(common_samples, ps)
+
+bc_common <- phyloseq::distance(ps_common, method = "bray")
+
+meta_common <- meta[match(labels(bc_common), meta$Sample.ID), ]
+
+# Check for missing Sample.ID
+sum(is.na(meta_common$Sample.ID))
+
+rownames(meta_common) <- meta_common$Sample.ID
+
+all(rownames(meta_common) == labels(bc_common))
+
+meta_common$age <- as.numeric(meta_common$age)
+meta_common$BMI <- as.numeric(meta_common$BMI)
+
+adonis2(
+  bc_common ~ Cancer.types + gender + BMI + age + Chemotherapy + WHO,
+  data = meta_common,
+  permutations = 999
+)
+
+
+ord <- ordinate(ps, method = "PCoA", distance = "bray")
+
+
+ord <- ordinate(ps, method = "PCoA", distance = "bray")
+
+plot_ordination(ps, ord, color = "Cancer.types") +
+  geom_point(size = 4) +
+  stat_ellipse(
+    aes(color = Cancer.types),
+    type = "t",
+    level = 0.95,
+    linewidth = 1
+  ) +
+  scale_color_manual(
+    values = c(
+      "GI" = "#D55E00",
+      "NonGI" = "#0072B2"
+    )
+  ) +
+  theme_bw() +
+  labs(
+    title = "PCoA based on Bray-Curtis distances",
+    color = "Cancer.types"
+  )
+
+sample_variables(ps)
+table(sample_data(ps)$Cancer.types, useNA = "ifany")
+
+rownames(meta2) <- meta2$Sample.ID
+
+nrow(meta2)
+attr(bc_all, "Size")
+all(rownames(meta2) == labels(bc_all))
+
+labels(bc_all)
+meta2$Sample.ID
+
+meta2 <- meta[match(labels(bc_all), meta$Sample.ID), ]
+rownames(meta2) <- meta2$Sample.ID
+
+all(rownames(meta2) == labels(bc_all))
+
+
+adonis2(
+  bc ~ Cancer.types + gender + BMI + age + Chemotherapy + WHO,
+  data = meta,
+  permutations = 999
+)  
