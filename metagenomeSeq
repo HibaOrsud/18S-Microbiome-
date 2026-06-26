@@ -1,0 +1,176 @@
+####Differential abundance of log 2fold change
+
+ 
+library(metagenomeSeq)
+
+# to Created count data object
+
+count_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R- inputs\\new-count-table.sp-pr2-B.csv", row.names = 1)
+
+sample_data <-read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R- inputs\\new-meta_data.csv", row.names = 1)
+
+# Convert data frames to the appropriate format count_matrix <- as.matrix(count_data)
+# Reorder columns of count_matrix to match rownames of sample_data
+
+count_matrix <- count_matrix[, rownames(sample_data)] # Check column names of count matrix colnames(count_matrix)
+# Check row names of sample data rownames(sample_data)
+# Check if names match
+
+if (!identical(colnames(count_matrix), rownames(sample_data)))
+{
+
+stop("Sample names in count matrix and sample metadata do not match")
+
+}
+
+# Filter low abundance features
+
+min_count <- 5
+
+min_samples <- 3
+
+keep_features <- rowSums(count_matrix >= min_count) >= min_samples
+
+count_matrix <- count_matrix[keep_features, ]
+
+# Create AnnotatedDataFrame for sample metadata
+
+phenoData <- AnnotatedDataFrame(sample_data)
+
+# Create a MRexperiment object
+
+obj <- newMRexperiment(count_matrix, phenoData = phenoData)
+
+# Normalize the data
+
+obj <- cumNorm(obj, p = cumNormStatFast(obj))
+
+# Extract normalized counts
+
+norm_counts <- MRcounts(obj, norm = TRUE)
+
+# Check column names in the sample metadata
+
+print(colnames(pData(obj)))
+
+# Replace 'Event.status' with the actual column name in your sample data
+
+actual_covariate_name <- "Event.status" # Replace with your actual covariate column name
+
+# Construct the model using the correct column name
+
+model <- model.matrix(~ Event.status, data = pData(obj))
+
+# Check the design matrix
+ 
+head(model)
+
+# Fit the linear model using limma
+
+fit <- lmFit(norm_counts, model)
+
+# create a contrast matrix
+
+contrast_matrix <- matrix(0, nrow = ncol(model), ncol = 1)
+
+rownames(contrast_matrix) <- colnames(model)
+
+contrast_matrix[actual_covariate_name, ] <- 1
+
+# Apply the contrasts to the fit object
+
+fit2 <- contrasts.fit(fit, contrast_matrix)
+
+# Compute statistics
+
+fit2 <- eBayes(fit2)
+
+## Extract the top differentially abundant features(10)
+
+top_results <- topTable(fit2, adjust = "fdr", sort.by = "P", number = 20)
+
+write.csv(top_results, file = "metagenomeseq.its-cncr.t", row.names = TRUE)
+
+# View the results
+
+print(top_results)
+
+library(ggplot2)
+
+# Create a heatmap of normalized counts for top features
+
+library(pheatmap)
+
+top_features <- rownames(top_results)
+
+norm_counts_top <- norm_counts[top_features, ]
+
+my_palette <- colorRampPalette(c("steelblue", "lemonchiffon", "brown2"))(n = 20)
+
+pheatmap(norm_counts_top,
+
+scale = "row",
+ 
+clustering_distance_rows = "correlation",
+
+clustering_distance_cols = "correlation",
+
+show_rownames = TRUE,
+
+show_colnames = TRUE,
+
+main = "Heatmap of Top Differentially Abundant Features",
+
+color = my_palette)
+
+
+
+write.csv(top_results, file = "metagenomeseq.R-NR.PR2", row.names = TRUE)
+
+
+
+library(pheatmap)
+
+# to Create a vector indicating group for each column
+
+# Replace with the actual mapping of your samples to responder/nonresponder status
+
+# Example data for annotation_col
+
+annotation_col <- data.frame(
+
+Event.status = rep(c("R", "Non-R"), length.out = 31)
+
+# Adjust to your actual data
+
+)
+
+rownames(annotation_col) <- colnames(norm_counts_top)
+
+
+
+dim(annotation_col)
+
+length(colnames(norm_counts_top))
+
+all(rownames(annotation_col) == colnames(norm_counts_top))
+
+# Should return TRUE
+# Define annotation colors ann_colors <- list(
+Event.status = c('R' = "cyan3", `Non-R` = "coral1") # Fix naming with backticks
+
+)
+
+# Generate the heatmap pheatmap(norm_counts_top,
+scale = "row",
+
+clustering_distance_rows = "correlation", clustering_distance_cols = "correlation", show_rownames = TRUE,
+show_colnames = TRUE,
+
+main = "Heatmap of Top Differentially Abundant Features",
+
+annotation_col = annotation_col, # Add annotations
+
+annotation_colors = ann_colors, # Add color mapping for annotations
+
+color = my_palette)
