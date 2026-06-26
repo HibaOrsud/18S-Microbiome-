@@ -1,0 +1,36 @@
+Step 1 Taxonomic Classification:
+
+1.1	Taxonomic Assignment with 18S database using dada2 1.32.0
+
+1.1.1	Run Rstudio:
+library(dada2)
+# sequence variants in to rstudio were retrieved otus_seq <- ("path_to_fata_file")
+#Assigning taxonomy
+taxa <- assignTaxonomy(otus_seq, "C:\\Users\\silva_nr_v138_train_set.fa.gz", minBoot = 50,
+tryRC = FALSE,
+outputBootstraps = FALSE,
+taxLevels = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+multithread = FALSE, verbose = FALSE
+)
+taxa.print <- taxa head(taxa.print)
+
+library(dada2)
+# sequence variants in to rstudio were retrieved otus_seq <- ("path_to_fata_file")
+#Assigning taxonomy
+taxa <- assignTaxonomy(otus_seq, "C:\\Users\\pr2_version_5.0.0_emu_db\\emu_db\\RP2_taxid.fasta"
+, minBoot = 50, tryRC = FALSE,
+outputBootstraps = FALSE,
+taxLevels = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"),
+multithread = FALSE, verbose = FALSE
+)
+taxa.print <- taxa head(taxa.print)
+
+ Output: Taxonomic classification tables from SILVA and PR2 references
+
+##1.2	Taxonomic Assignment with Specialized Databases using BLAST
+
+
+Output: Taxonomic classification tables from VEuPathDB and WormBase
+
+
+
