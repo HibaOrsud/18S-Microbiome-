@@ -1,0 +1,343 @@
+β-diversity measurement 
+library(RColorBrewer)
+library(ggpubr)
+library(dplyr)
+
+#####Unweighted Unifrac
+library(vegan)
+library(phyloseq)
+
+otu_table <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R- inputs\\new-otu-table.csv", row.names = 1)
+
+tax_df <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R- inputs\\new.taxa_table_veupath - updated.csv", row.names = 1)
+
+sample_data <- read.csv("C:\\Users\\hibaorsud\\Desktop\\New\\R-inputs\\new- meta_data.csv", row.names = 1)
+
+otu_table <- otu_table(as.matrix(otu_table), taxa_are_rows = TRUE)
+
+tax_matrix <- as.matrix(tax_df)
+
+tax_table <- tax_table(tax_matrix)
+
+otu_taxa_names <- rownames(otu_table)
+
+tax_taxa_names <- rownames(tax_table)
+
+if (!all(otu_taxa_names %in% tax_taxa_names) ||
+!all(tax_taxa_names %in% otu_taxa_names)) {
+
+stop("OTU names and taxonomy names do not match")
+
+}
+ 
+print(otu_taxa_names)
+
+print(tax_taxa_names)
+
+
+
+sample_data <- sample_data(sample_data)
+
+
+
+physeq <- phyloseq(otu_table, sample_data, tax_table, treeNJ)
+
+print(physeq)
+
+# distance matrix Calculation
+
+dist_matrix <- vegdist(otu_table(physeq), method = "bray")
+
+# the OTU table Converted to a matrix
+
+otu_matrix <- as.matrix(otu_table(physeq))
+
+# rows with all zero counts Removed
+
+otu_matrix <- otu_matrix[rowSums(otu_matrix) > 0, ]
+
+# new phyloseq object was Created with the cleaned OTU table
+
+physeq_clean <- phyloseq(otu_table(otu_matrix, taxa_are_rows = TRUE),
+
+sample_data(physeq),
+
+tax_table(physeq),
+
+phy_tree(physeq))
+
+
+
+# the cleaned phyloseq object Verified
+
+otu_table(physeq_clean)
+ 
+# conditions: Treatment.type , Event.status, Cancer.types , were factorize
+
+sample_data(physeq)$Treatment.type <- factor(sample_data(physeq)$Treatment.type,
+
+levels = c(0, 1),
+
+labels = c("with
+Immunotherapy", "without Immunotherapy"))
+
+sample_data(physeq)$Event.status <- factor(sample_data(physeq)$Event.status,
+
+levels = c(0, 1),
+
+labels =
+c("Responder", "Non-responder"))
+
+sample_data(physeq)$Cancer.types <- factor(sample_data(physeq)$Cancer.types,
+
+levels = c(0, 1),
+
+labels = c("GI",
+"Non-GI"))
+
+sample_data(physeq_clean)$BF.groups <- factor(sample_data(physeq)$BF.groups,
+
+levels = c(1, 2),
+
+labels = c("B",
+"F"))
+
+
+
+# distance matrix calculation
+
+dist_matrix <- vegdist(otu_table(physeq_clean), method = "bray")
+ 
+if (any(is.na(dist_matrix))) {
+
+print("There are missing values in the distance matrix.")
+
+# Handle missing values if necessary
+
+}
+
+print(dist_matrix)
+
+
+
+# all zero rows were filtered from the OTU table
+
+otu_table_filtered <- otu_table(physeq)[rowSums(otu_table(physeq)) > 0, ]
+
+
+
+# Then, the vegdist function re-runned
+
+dist_matrix <- vegdist(otu_table_filtered, method = "bray")
+
+any(is.na(otu_table_filtered))
+
+sample_data(physeq)$BF.groups
+
+sample_data(physeq)$BF.groups <- some_grouping_vector
+
+dim(ordination(physeq)$vectors)
+
+dim(sample_data(physeq))
+
+# ordination performed
+
+ordu <- ordinate(physeq_clean, method = "PCoA", distance = dist_matrix)
+
+write.table(ordu[["values"]], file = "newpcoa_coordinates- unweighted unifrac-BF.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
+
+#ordination plot
+
+p <- plot_ordination(physeq_clean, ordu, color = "Treatment.type") +
+
+geom_point(size = 3) +
+
+theme_gray() +
+ 
+scale_color_manual(values = c("with Immunotherapy" = "skyblue", "without Immunotherapy" = "orange")) +
+
+labs(title = "PCoA of Taxonomic Data", x = "PCoA1", y = "PCoA2")
+
+
+
+physeq_clean <- phyloseq(otu_table(otu_matrix, taxa_are_rows = TRUE),
+
+sample_data(physeq),
+
+tax_table(physeq))
+
+
+
+# Calculate Bray-Curtis distance matrix
+
+dist_matrix <- vegdist(otu_table(physeq_clean), method = "bray")
+
+
+
+# Perform PCoA ordination
+
+ordu <- ordinate(physeq_clean, method = "PCoA", distance = "bray")
+
+
+
+# Plot the ordination (points)
+
+p <- plot_ordination(physeq_clean, ordu, color = "Event.status") +
+
+geom_point(size = 3) +
+
+theme_gray() +
+
+scale_color_manual(values = c("Responder" = "skyblue", "Non- responder" = "orange")) +
+
+labs(title = "PCoA of Taxonomic Data between responder and nonresponder groups", x = "PCoA1", y = "PCoA2")
+
+
+
+# Print the plot
+ 
+print(p)
+
+# Generate the ordination plot object
+
+ordu_plot <- plot_ordination(physeq_clean, ordu, color = "Event.status")
+
+
+
+# Extract the scores and metadata from the ordination plot object
+
+plot_data <- ordu_plot$data
+
+
+
+p_box <- ggplot(plot_data, aes(x = Event.status, y = Axis.1, fill = Event.status)) +
+
+geom_boxplot() +
+
+geom_jitter(width = 0.2, size = 1.5, alpha = 0.7) +
+
+theme_gray() +
+
+scale_fill_manual(values = c("Responder" = "skyblue", "Non- responder" = "orange")) +
+
+labs(title = "Box Plot of PCoA1 by Event.status", x = "Event.status", y = "unweighted unifrac")
+
+print(p_box)
+
+#with significance-ordination-unweighted (box_plot)
+
+library(ggsignif)
+
+# Perform a significance test (e.g., Wilcoxon test)
+
+test_result <- wilcox.test(Axis.1 ~ Treatment.type, data = plot_data)
+
+# Create the box plot with significance bars
+
+p_box <- ggplot(plot_data, aes(x = Treatment.type, y = Axis.1, fill = Treatment.type)) +
+
+geom_boxplot() +
+ 
+geom_jitter(width = 0.2, size = 1.5, alpha = 0.7, aes(group
+= Treatment.type))+
+
+theme_gray() +
+
+scale_fill_manual(values = c("with Immunotherapy" = "steelblue", "without Immunotherapy" = "tomato")) +
+
+labs(title = "Box Plot of PCoA1 by Treatment.type", x = "Treatment.type", y = "unweighted unifrac") +
+
+geom_signif(comparisons = list(c("with Immunotherapy", "without Immunotherapy")),
+
+annotations = sprintf("p = %.2g", test_result$p.value),
+
+y_position = max(plot_data$Axis.1) * 1.1, # adjust as needed
+
+tip_length = 0.03)
+
+
+
+#Weighted Unifrac
+
+ps1.rel <- microbiome::transform(physeq, "compositional")
+
+
+
+ordu.wt.uni <- ordinate(ps1.rel , "PCoA", "unifrac", weighted=T)
+
+
+
+write.table(ordu.wt.uni[["values"]], file = "newpcoa_coordinates-weighted unifrac-F.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
+
+
+
+barplot(ordu.unwt.uni$values$Eigenvalues[1:10])
+
+
+
+wt.unifrac <- plot_ordination(ps1.rel,
+
+ordu.wt.uni,
+color="Cancer.types")
+ 
+wt.unifrac <- wt.unifrac + ggtitle("Weighted UniFrac") + geom_point(size = 2)
+
+wt.unifrac <- wt.unifrac + theme_classic() + scale_color_brewer("Cancer.types", palette = "Set2")
+
+print(wt.unifrac)
+
+
+p <- plot_ordination(ps1.rel, ordu.wt.uni, color = "Treatment.type") +
+
+geom_point(size = 3) +
+
+theme_gray() +
+
+scale_color_manual(values = c("with Immunotherapy" = "skyblue", "without Immunotherapy" = "orange")) +
+test_result <- wilcox.test(Axis.1 ~ Treatment.type, data = plot_data)
+
+# Create the box plot with significance bars
+
+p_box <- ggplot(plot_data, aes(x = Treatment.type, y = Axis.1, fill = Treatment.type)) +
+
+geom_boxplot() +
+
+geom_jitter(width = 0.2, size = 1.5, alpha = 0.7, aes(group
+= Treatment.type)) + theme_gray() +
+scale_fill_manual(values = c("with Immunotherapy" = "steelblue", "without Immunotherapy" = "tomato")) +
+
+labs(title = "Box Plot of PCoA1 by Treatment.type", x = "Treatment.type", y = "weighted unifrac") +
+
+geom_signif(comparisons = list(c("with Immunotherapy", "without Immunotherapy")),
+
+annotations = sprintf("p = %.2g", test_result$p.value),
+
+y_position = max(plot_data$Axis.1, na.rm = TRUE)
+* 1.1, # adjust as needed
+
+tip_length = 0.03) # Print the plot
+
+
+labs(title = "PCoA of Taxonomic Data", x = "PCoA1", y = "PCoA2")
+
+print(p)
+
+print(p + stat_ellipse())
+
+
+
+#with significance-ordination-weighted
+
+library(ggsignif)
+
+# Generate the ordination plot object
+
+ordu_plot <- plot_ordination(ps1.rel, ordu.wt.uni, color = "Treatment.type")
+
+# Extract the scores and metadata from the ordination plot object
+
+plot_data <- ordu_plot$data
+
+
+
+# Perform a significance test (e.g., Wilcoxon test)
