@@ -1,0 +1,158 @@
+Differential abundance
+
+6.1 Differential abundance regarding total abundant count
+
+ 
+library(phyloseq)
+
+library(RColorBrewer)
+
+library(ggpubr)
+
+library(dplyr)
+
+library(vegan)
+
+library(ggplot2)
+
+print(physeq)
+
+ps1.com.fam <- microbiome::aggregate_taxa(physeq,"Species")
+
+ps1.com.fam.rel <- microbiome::transform(ps1.com.fam, "compositional")
+
+plot.composition.relAbun <- plot_composition(ps1.com.fam.rel,
+
+xlabel = "BF.groups")data.com <- plot.composition.relAbun$data
+
+##For top 20 species:
+
+# Check the taxonomic table
+
+tax_table(physeq)
+
+ps1.com.fam <- microbiome::aggregate_taxa(physeq,"Species")
+
+ps1.com.fam.rel <- microbiome::transform(ps1.com.fam, "compositional")
+
+top20_species <- names(sort(taxa_sums(ps1.com.fam.rel), decreasing = TRUE)[1:10])
+
+ps1.com.fam.rel.top10 <- prune_taxa(top20_species, ps1.com.fam.rel)
+
+# the composition Plot and the x-axis label set
+
+plot.composition.relAbun <- plot_composition(ps1.com.fam.rel.top10,
+
+x.label =
+"Event.status")
+
+# the plotting data Extracted
+ 
+data.com <- plot.composition.relAbun$data
+
+# the filtered data to verified
+
+print(head(data.com))
+
+# Filtered to species level data in the Tax column
+
+data.com <- data.com[data.com$Tax == "Species", ]
+
+
+
+# Now you data.com could be used for further analysis or plotting
+
+colnames(data.com)
+
+data.com$xlabel <- factor(data.com$xlabel,
+
+levels = c(0, 1),
+
+labels = c("with Immunotherpy", "without Immunotherpy"))
+
+
+
+data.com$xlabel <- factor(data.com$xlabel,
+
+levels = c(0, 1),
+
+labels = c("Responder", "Non-
+responder"))
+
+
+
+data.com$xlabel <- factor(data.com$xlabel,
+
+levels = c(0, 1),
+
+labels = c("GI", "Non-GI"))
+
+
+
+data.com$xlabel <- factor(data.com$xlabel,
+
+levels = c(1, 2),
+
+labels = c("B", "F"))
+
+# base plot
+ 
+p.heat <- ggplot(data.com, aes(x = Sample, y = Tax)) + geom_tile(aes(fill = Abundance))
+
+
+
+# colors adjusted
+
+p.heat <- p.heat + scale_fill_distiller("Abundance", palette = "RdYlBu") + theme_bw()
+
+
+
+# italics names adjusted
+
+p.heat <- p.heat +
+
+theme(axis.text.y = element_text(colour = 'black', size = 10, face = 'italic'))
+
+p.heat <- p.heat +
+
+theme(
+
+axis.ticks.y = element_line(linewidth = 0.1))
+
+# Make seperate samples based on main varaible
+
+p.heat <- p.heat + facet_grid(~xlabel,
+
+scales = "free") +
+rremove("x.text")
+
+
+
+p.heat <- p.heat + ylab("Species")
+
+
+
+# the x-axis Cleaned
+
+p.heat <- p.heat +
+
+theme(
+
+axis.title.x = element_blank(),	# Remove x-axis title
+
+axis.text.x = element_text(angle = 90, size = 7, color = "black", hjust = 1, vjust = 0.5),
+
+axis.ticks.x = element_blank()	# Remove x-axis ticks
+)
+
+
+
+# the facet label box Cleaned
+
+p.heat <- p.heat + theme(legend.key = element_blank(),
+
+strip.background = element_rect(colour="black", fill="white"))
+
+print(p.heat)
+
+ggsave("heatmap20-BF vs taxa-pr2.png", plot = p.heat, width = 12, height = 10, units = "in", dpi = 1000)
