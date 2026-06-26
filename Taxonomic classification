@@ -33,4 +33,7 @@ taxa.print <- taxa head(taxa.print)
 Output: Taxonomic classification tables from VEuPathDB and WormBase
 
 
+###Overlapping resolution
+
+Overlapping OTUs observed among the selected databases were eliminated upon meeting the MinBoot threshold of 50, yet those with an E-value of ≤ 0.01 were selected for exploratory purpose.
 
