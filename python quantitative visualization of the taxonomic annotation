@@ -1,0 +1,40 @@
+#Python Quantitative visualization of taxonomic annotation
+
+ 
+'Other Eukaryota(Embryophyta)': 'blue', 'Eukaryota': 'skyblue',
+'Archaea': 'yellow', 'Bacteria': 'coral'
+}
+# Create and display the Altair stacked bar chart chart = alt.Chart(pr2).mark_bar().encode(
+x=alt.X('dataset:N', title='PR2 DB', scale=alt.Scale(domain=[])), y=alt.Y('count(Abundance):Q', title='Total Abundance'), color=alt.Color('Kingdom:N', legend=alt.Legend(title='Kingdom'),
+scale=alt.Scale(domain=list(custom_palette.keys()), range=list(custom_palette.values()))),
+order=alt.Order('sum(Abundance):Q', sort='descending')
+).properties(
+width=200, height=500
+).interactive()
+
+# Display the chart chart.display()
+
+
+# Create and display the Altair stacked bar chart chart = alt.Chart(silva).mark_bar().encode(
+x=alt.X('dataset:N', title='SILVA DB', scale=alt.Scale(domain=[])), y=alt.Y('count(Abundance):Q', title='Total Abundance'), color=alt.Color('Kingdom:N', legend=alt.Legend(title='Kingdom '),
+scale=alt.Scale(domain=list(custom_palette.keys()), range=list(custom_palette.values()))),
+order=alt.Order('sum(Abundance):Q', sort='descending')
+).properties(
+width=200, height=500
+)
+
+# Display the chart chart.display()
+
+# First, get a list of unique species wrm_list = worm['Species'].unique().tolist()
+
+color_list = ['#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3']
+# Create a color dictionary mapping species to colors
+# Replace 'med_list' with the actual list of medium importance values color_dict = {Species: color for Species, color in zip(wrm_list, color_list)}
+ 
+ 
+Output: Stack bar for each taxon count in each database
+
+
+
+
+
