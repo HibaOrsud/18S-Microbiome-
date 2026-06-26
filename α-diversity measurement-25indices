@@ -1,0 +1,107 @@
+##α-diversity measurement
+# these two data frames were merged into one
+
+div.df <- merge(hmp.div,hmp.meta, by = "sam_name")
+
+colnames(div.df)
+
+# conditions were converted to factor and set the labels
+
+div.df$Treatment.type <- factor(div.df$Treatment.type,
+
+levels = c(0, 1),
+
+labels = c("with Immunotherpy", "without Immunotherpy"))
+
+div.df$Cancer.types <- factor(div.df$Cancer.types,
+
+levels = c(0, 1),
+
+labels = c("GI", "Non-GI"))
+
+
+
+div.df$Event.status <- factor(div.df$Treatment.type,
+
+levels = c(0, 1),
+
+labels = c("Responder", "Non-
+responder"))
+
+
+
+# the div.df data frame Converted to long format
+
+div_df_long <- div.df %>%
+
+pivot_longer(
+
+cols = -c(sam_name, Treatment.type, Cancer.types, Event.status, Baseline.and.follow.ups),
+
+names_to = "diversity_measure",
+
+values_to = "value"
+
+)
+
+head(hmp.meta)
+ 
+# By Meling index
+
+# phyloseq object converted into a long data format.
+
+c("Event.status", "observed", "chao1", "diversity_inverse_simpson", "diversity_gini_simpson", "diversity_shannon", "diversity_fisher", "diversity_coverage", "evenness_camargo", "evenness_pielou",	"evenness_simpson", "evenness_evar", "evenness_bulla", "dominance_dbp", "dominance_dmn", "dominance_absolute", "dominance_relative", "dominance_simpson", "dominance_core_abundance", "dominance_gini", "rarity_log_modulo_skewness", "rarity_low_abundance", "rarity_rare_abundance" )]
+
+colnames(div.df)
+
+div.df2 <- div.df[, c("Event.status", "observed", "chao1", "diversity_inverse_simpson", "diversity_gini_simpson")]
+
+colnames(div.df2) <- c("Cancer.types","rarity_low_abundance", "rarity_rare_abundance")
+
+div_df_melt <- reshape2::melt(div.df2, c("Cancer.types"))
+
+head(div_df_melt)
+
+# div_df_melt used as data frame to plot
+
+p <- ggboxplot(div_df_melt, x = "Cancer.types", y = "value",
+
+fill = "Cancer.types",
+
+palette = "jco",
+
+legend= "right",
+
+facet.by = "variable",
+
+scales = "free")+
+
+labs(title = "Comparison of Diversity Indices by Cancer.types",
+
+x = "Cancer.types", y = "Diversity Index") +
+
+scale_fill_manual(values = c("GI" = "skyblue", "Non-GI" = "orange"))
+p <- p + rotate_x_text()
+
+# we will remove the x axis lables
+
+
+
+p <- p + rremove("x.text") p
+
+
+# significance testing added
+
+p <- p + stat_compare_means(aes(label = ..p.signif..),
+
+method = "wilcox.test label = "p.signif", label.y = 1.5)
+print(p)
+
+stat_results <- compare_means(value ~ Cancer.types, data = div_df_melt,
+
+method = "wilcox.test", group.by = "variable")
+print(stat_results)
+
+# the results Saved to a CSV file
+
+write.csv(stat_results, "significance_results-alpha5- cancer.type-its.csv", row.names = TRUE)
